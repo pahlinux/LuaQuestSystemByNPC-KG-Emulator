@@ -7,7 +7,7 @@ Cuando terminas la primera te muestra la segunda y asi sucesivamente.
 Las quest solo pueden realizarce de a una, asi tengas 20 en distintos mapas, siempre vas a poder hacer una y al terminarla
 vas a poder hacer otra.
 
-Antes de arrancar el GS o reiniciar lua descomentar al final del codigo QuestSystemByMaps.lua la lineadentro de:
+Antes de arrancar el GS o reiniciar lua descomentar al final del codigo QuestSystemByMaps.lua la linea dentro de:
 
 function QuestSystem.Init()
 
