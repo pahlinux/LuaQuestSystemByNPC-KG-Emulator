@@ -6,6 +6,8 @@ y misiones por unica vez tambien por mapa, estas ultimas son apilables, es decir
 Cuando terminas la primera te muestra la segunda y asi sucesivamente.
 Las quest solo pueden realizarce de a una, asi tengas 20 en distintos mapas, siempre vas a poder hacer una y al terminarla
 vas a poder hacer otra.
+Este sistema se armo para el requerimiento de monster.
+El requerimiento de Items no esta funcionando por el momento.
 
 Antes de arrancar el GS o reiniciar lua descomentar al final del codigo QuestSystemByMaps.lua la linea dentro de:
 
