@@ -1,3 +1,8 @@
+-------------------
+---INICIO CONFIG
+-------------------
+---IMPORTANTE: La Config debe ser igual en server y cliente.
+
 QUEST_SYSTEM_SWITCH = 1
 
 QUEST_SYSTEM_ONLY_ACCOUNT = 1 
@@ -30,8 +35,8 @@ QUEST_SYSTEM_ALLOWED_NPCS = {
 ---------------------------------------------------------
 -- [NUEVO] ESTRUCTURA POR MAPA
 ---------------------------------------------------------
--- Usaremos QUEST_SYSTEM_BY_MAP[MapID] QuestIdentidication debe cambiar por cada mapa (ej: 1-99 para lorencia 100-199 para devias)
--- Agregamos IsOneTime = 0 (Para quest Diarias) IsOneTime = 1 (Para Quest por unica ves)
+-- Usaremos QUEST_SYSTEM_BY_MAP[MapID] QuestIdentidication debe cambiar por cada mapa (ej: 1-99 para lorencia 100-199 para Dungeon).
+-- Agregamos IsOneTime = 0 (Para quest Diarias) IsOneTime = 1 (Para Quest por unica ves) Las Quest diarias aparecen en Verde y las IsOnTime en naranja.
 QUEST_SYSTEM_BY_MAP = {}
 
 QUEST_SYSTEM_BY_MAP[0] = {
@@ -227,7 +232,11 @@ QUEST_SYSTEM_REWARD_ITEMS[ KEY_KT ] = {
 QUEST_SYSTEM_REWARD_EXP[ KEY_KT ] = {
     { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
 }
+----------------
+---FIN Config---
+----------------
 
+--Estos menjajes no tocarlos en el cliente son distintos.
 QUEST_SYSTEM_MESSAGES = {}
 QUEST_SYSTEM_MESSAGES['Eng'] = {
     [1] = 'You are busy at the moment!',
