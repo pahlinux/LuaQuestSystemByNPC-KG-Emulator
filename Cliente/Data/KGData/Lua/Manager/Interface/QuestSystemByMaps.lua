@@ -1,0 +1,1478 @@
+-------------------
+---INICIO CONFIG
+-------------------
+---IMPORTANTE: La Config debe ser igual en server y cliente.
+
+QUEST_SYSTEM_SWITCH = 1
+
+QUEST_SYSTEM_ONLY_ACCOUNT = 1 
+QUEST_SYSTEM_REMOVE_RESETS = 0
+QUEST_SYSTEM_REMOVE_MRESETS = 0
+QUEST_SYSTEM_REMOVE_COIN1 = 0
+QUEST_SYSTEM_REMOVE_COIN2 = 0
+QUEST_SYSTEM_REMOVE_COIN3 = 0
+QUEST_SYSTEM_REMOVE_COIN4 = 0
+
+QUEST_SYSTEM_USE_GREMORY = 0
+QUEST_SYSTEM_SPACE_INVENTORY = 50
+
+-- Packets
+QUEST_SYSTEM_PACKET = 0x04
+QUEST_SYSTEM_PACKET_OPEN_NAME = 'QuestSystemOpen'
+QUEST_SYSTEM_HUD_UPDATE_NAME = 'QuestSystemHUDUpdate'
+QUEST_SYSTEM_PACKET_START_NAME = 'QuestSystemStartQuest'
+QUEST_SYSTEM_PACKET_GET_REWARD_NAME = 'QuestSystemGetReward'
+QUEST_SYSTEM_PACKET_CONTINUE_QUEST_NAME = 'QuestSystemContinueQuest'
+QUEST_SYSTEM_PACKET_ABANDON_NAME = 'QuestSystemAbandon'
+QUEST_DEBUG_MODE = false -- Cambiá a true cuando quieras ver los logs
+
+-- Lista de NPCs permitidos para abrir el Quest System
+-- Puedes añadir todos los que quieras: { [748] = true, [746] = true, [500] = true }
+QUEST_SYSTEM_ALLOWED_NPCS = { 
+    [748] = true, 
+--    [746] = true 
+}
+---------------------------------------------------------
+-- [NUEVO] ESTRUCTURA POR MAPA
+---------------------------------------------------------
+-- Usaremos QUEST_SYSTEM_BY_MAP[MapID] QuestIdentidication debe cambiar por cada mapa (ej: 1-99 para lorencia 100-199 para Dungeon).
+-- Agregamos IsOneTime = 0 (Para quest Diarias) IsOneTime = 1 (Para Quest por unica ves) Las Quest diarias aparecen en Verde y las IsOnTime en naranja.
+QUEST_SYSTEM_BY_MAP = {}
+
+QUEST_SYSTEM_BY_MAP[0] = {
+    { QuestIdentification = 1, QuestName = 'Kill Spider on Fire!', IsOneTime = 1, Level = 20, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 2, QuestName = 'Kill Budge Dragon on Fire!', IsOneTime = 1, Level = 30, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 3, QuestName = 'Kill Skeleton on Fire!', IsOneTime = 1, Level = 50, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 50, QuestName = 'Kill Golden Budge Dragon!', IsOneTime = 0, Level = 50, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+
+}
+
+-- MAPA 1: Dungeon (Misiones que el NPC de Quest en Dungeon)
+QUEST_SYSTEM_BY_MAP[1] = {
+    { QuestIdentification = 200, QuestName = 'Kill Monster Dungeon', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+}
+
+-- MAPA 2: DEVIAS (Misiones que el NPC de Quest en Devias)
+QUEST_SYSTEM_BY_MAP[2] = {
+    { QuestIdentification = 100, QuestName = 'Kill Monster Devias Ruins', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+}
+
+-- MAPA 37: KANTURU (Misiones que dará cualquier NPC de Quest en Kanturu)
+QUEST_SYSTEM_BY_MAP[37] = {
+    { QuestIdentification = 300, QuestName = 'Kill Monster Kanturu', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0, Vip = 0, Kills = 0, Validity = '01/06/2036' },
+}
+
+---------------------------------------------------------
+-- COMPATIBILIDAD Y LLAVES
+---------------------------------------------------------
+-- Mantenemos QKey pero ahora la lógica del script la usará con MapID en lugar de NPC
+if QKey == nil then
+    function QKey(npc_id, map_id, qid) 
+        -- Genera una llave única: "748_2_100"
+        return string.format("%d_%d_%d", 
+            tonumber(npc_id) or 0, 
+            tonumber(map_id) or 0, 
+            tonumber(qid) or 0) 
+    end
+end
+
+-- Tablas de Requisitos y Recompensas
+QUEST_SYSTEM_REQUIREMENTS_ITEMS = {}
+QUEST_SYSTEM_REQUIREMENTS_MONSTER = {}
+QUEST_SYSTEM_REWARD_ITEMS = {}
+QUEST_SYSTEM_REWARD_COINS = {}
+QUEST_SYSTEM_REWARD_BUFF = {}
+QUEST_SYSTEM_REWARD_EXP = {}
+QUEST_SYSTEM_POINTS_REWARDS = {}
+
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 0 (Lorencia) - Quest 1 (One-Time)
+---------------------------------------------------------
+local KEY_LR1 = QKey(748, 0, 1)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_LR1 ] = {
+    { MonsterIndex = 3, Quantity = 10, MonsterName = 'Spider' },
+}
+--------------------------------------------------------------------------------
+								--Reward--
+--CoinIdentification: 1 = WcoinP, 2 = WcoinC, 3 = GlobinPoint, 4 = Ruud, 5 = Zen
+--Exp Identification: 1 = Normal Exp, 2 = MasterExp 3=LVL-UP 4=Master LVL-UP
+-- EffectTime = time in seconds Example EffectID = 29 Seal Ascencion
+--------------------------------------------------------------------------------
+QUEST_SYSTEM_REWARD_COINS[ KEY_LR1 ] = {
+    { CoinName = 'Zen', CoinAmount = 10000000, CoinIdentification = 5 },
+}
+QUEST_SYSTEM_REWARD_EXP[ KEY_LR1 ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 0 (Lorencia) - Quest 2 (One-Time)
+---------------------------------------------------------
+local KEY_LR2 = QKey(748, 0, 2)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_LR2 ] = {
+    { MonsterIndex = 2, Quantity = 10, MonsterName = 'Budge Dragon' },
+}
+--------------------------------------------------------------------------------
+								--Reward--
+--------------------------------------------------------------------------------
+QUEST_SYSTEM_REWARD_COINS[ KEY_LR2 ] = {
+    { CoinName = 'Zen', CoinAmount = 20000000, CoinIdentification = 5 },
+}
+QUEST_SYSTEM_REWARD_EXP[ KEY_LR2 ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 0 (Lorencia) - Quest 3 (One-Time)
+---------------------------------------------------------
+local KEY_LR3 = QKey(748, 0, 3)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_LR3 ] = {
+    { MonsterIndex = 14, Quantity = 10, MonsterName = 'Skeleton' },
+}
+--------------------------------------------------------------------------------
+								--Reward--
+--------------------------------------------------------------------------------
+QUEST_SYSTEM_REWARD_COINS[ KEY_LR3 ] = {
+    { CoinName = 'Zen', CoinAmount = 50000000, CoinIdentification = 5 },
+}
+QUEST_SYSTEM_REWARD_EXP[ KEY_LR3 ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 0 (Lorencia) - Quest 50 (One-Time)
+---------------------------------------------------------
+local KEY_LR50 = QKey(748, 0, 50)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_LR50 ] = {
+    { MonsterIndex = 43, Quantity = 1, MonsterName = 'Golden Budge Dragon' },
+}
+--------------------------------------------------------------------------------
+								--Reward--
+--------------------------------------------------------------------------------
+QUEST_SYSTEM_REWARD_ITEMS[ KEY_LR50 ] = {
+    { ItemIndex = GET_ITEM(12,30), Level = 0, Op1=0, Op2=0, Life=0, Exc=0, Ancient=0, JoH=0, SockCount=0, ItemTime=0, DaysExpire=0, Flag=0, Name='Jewel Of Chaos x1', Count=1, Class = -1 }
+}
+QUEST_SYSTEM_REWARD_COINS[ KEY_LR50 ] = {
+    { CoinName = 'Zen', CoinAmount = 50000000, CoinIdentification = 5 },
+}
+QUEST_SYSTEM_REWARD_EXP[ KEY_LR50 ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 1 (DUNGEON) - Quest 200
+---------------------------------------------------------
+local KEY_DUN = QKey(748, 1, 200)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_DUN ] = {
+    { MonsterIndex = 14, Quantity = 10, MonsterName = 'Skeleton' },
+}
+
+QUEST_SYSTEM_REWARD_COINS[ KEY_DUN ] = {
+    { CoinName = 'Ruud', CoinAmount = 150, CoinIdentification = 4 },
+}
+QUEST_SYSTEM_REWARD_COINS[ KEY_DUN ] = {
+    { CoinName = 'Zen', CoinAmount = 50000000, CoinIdentification = 5 },
+}
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 2 (DEVIAS) - Quest 100
+---------------------------------------------------------
+local KEY_DVS = QKey(748, 2, 100)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_DVS ] = {
+    { MonsterIndex = 562, Quantity = 1, MonsterName = 'Dark Mammoth' },
+    { MonsterIndex = 563, Quantity = 1, MonsterName = 'Dark Giant' },
+    { MonsterIndex = 564, Quantity = 1, MonsterName = 'Dark Coolutin' },
+    { MonsterIndex = 565, Quantity = 1, MonsterName = 'Dark Iron Knight' },
+}
+
+QUEST_SYSTEM_REWARD_COINS[ KEY_DVS ] = {
+    { CoinName = 'Ruud', CoinAmount = 150, CoinIdentification = 4 },
+}
+
+QUEST_SYSTEM_REWARD_ITEMS[ KEY_DVS ] = {
+    { ItemIndex = GET_ITEM(12,15), Level = 0, Op1=0, Op2=0, Life=0, Exc=0, Ancient=0, JoH=0, SockCount=0, ItemTime=0, DaysExpire=0, Flag=0, Name='Jewel Of Chaos x1', Count=1, Class = -1 }
+}
+
+QUEST_SYSTEM_REWARD_EXP[ KEY_DVS ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+
+QUEST_SYSTEM_REWARD_BUFF[ KEY_DVS ] = {
+    { EffectID = 29, EffectTime = 3600, BuffName = 'Seal Ascencion' }
+}
+
+QUEST_SYSTEM_POINTS_REWARDS[ KEY_DVS ] = {
+    {PtsID = 1, Amount = 10, StatName = "Free Points"},
+}
+
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 37 (KANTURU) - Quest 300
+---------------------------------------------------------
+local KEY_KT = QKey(748, 37, 300)
+
+QUEST_SYSTEM_REQUIREMENTS_MONSTER[ KEY_KT ] = {
+    { MonsterIndex = 353, Quantity = 5, MonsterName = 'Satyros' },
+    { MonsterIndex = 354, Quantity = 5, MonsterName = 'Blade Hunter' },
+    { MonsterIndex = 355, Quantity = 5, MonsterName = 'Kentauros' },
+    { MonsterIndex = 356, Quantity = 5, MonsterName = 'Gigantis' },
+	{ MonsterIndex = 350, Quantity = 5, MonsterName = 'Berserker' },
+	{ MonsterIndex = 357, Quantity = 5, MonsterName = 'Genocider' },
+}
+
+QUEST_SYSTEM_REWARD_COINS[ KEY_KT ] = {
+    { CoinName = 'Ruud', CoinAmount = 100, CoinIdentification = 4 },
+}
+
+QUEST_SYSTEM_REWARD_ITEMS[ KEY_KT ] = {
+    { ItemIndex = GET_ITEM(14,13), Level = 0, Op1=0, Op2=0, Life=0, Exc=0, Ancient=0, JoH=0, SockCount=0, ItemTime=0, DaysExpire=0, Flag=0, Name='Jewel Of Bless x1', Count=1, Class = -1 },
+}
+
+QUEST_SYSTEM_REWARD_EXP[ KEY_KT ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+----------------
+---FIN Config---
+----------------
+
+QUEST_SYSTEM_VIP_NAME = {}
+
+QUEST_SYSTEM_VIP_NAME[0] = 'Free'
+QUEST_SYSTEM_VIP_NAME[1] = 'Vip Silver'
+QUEST_SYSTEM_VIP_NAME[2] = 'Vip Gold'
+QUEST_SYSTEM_VIP_NAME[3] = 'Vip Plantinum'
+
+--Estos menjajes no tocarlos en el cliente son distintos.
+QUEST_SYSTEM_MESSAGES = {}
+
+QUEST_SYSTEM_MESSAGES['Por'] = {
+[1] = 'Sistema de quest',
+[2] = 'V�lida at� o dia: %s',
+[3] = 'Voc� ainda n�o iniciou nenhuma quest',
+[4] = 'Gostaria de iniciar a quest?',
+[5] = 'Come�ar Quest',
+[6] = 'Recolher recompensa',
+[7] = 'Requisitos:',
+[8] = '- %d Level',
+[9] = '- %d Resets',
+[10] = '- %d MResets',
+[11] = '- %d Zen',
+[12] = '- %d WcoinC',
+[13] = '- %d WcoinP',
+[14] = '- %d GlobinPoint',
+[15] = '- %d Ruud',
+[16] = '- %d Kills',
+[17] = '- %s',
+[18] = '- Matar %s (%d/%d)',
+[19] = '- Obter %dx %s',
+[20] = 'Pr�mios:',
+[21] = 'A miss�o foi conclu�da!',
+[22] = 'Continuar',
+[23] = 'Fechar',
+}
+
+QUEST_SYSTEM_MESSAGES['Eng'] = {
+[1] = 'Quest system',
+[2] = 'Valid until day: %s',
+[3] = 'You havent started any quests yet',
+[4] = 'Would you like to start the quest?',
+[5] = 'Start Quest',
+[6] = 'Collect reward',
+[7] = 'Requirements:',
+[8] = '-%d Level',
+[9] = '-%d Resets',
+[10] = '-%d MResets',
+[11] = '-%d Zen',
+[12] = '- %d WcoinC',
+[13] = '- %d WcoinP',
+[14] = '- %d GlobinPoint',
+[15] = '- %d Ruud',
+[16] = '-%d Kills',
+[17] = '-%s',
+[18] = '- Kill %s (%d/%d)',
+[19] = '- Get %dx %s',
+[20] = 'Awards:',
+[21] = 'The mission has been completed!',
+[22] = 'Continue',
+[23] = 'Close',
+}
+
+QUEST_SYSTEM_MESSAGES['Spn'] = {
+[1] = 'Sistema de misiones',
+[2] = 'V�lido hasta el d�a: %s',
+[3] = 'A�n no has comenzado ninguna misi�n',
+[4] = '�Te gustar�a comenzar la misi�n?',
+[5] = 'Iniciar misi�n',
+[6] = 'Recoger recompensa',
+[7] = 'Requisitos:',
+[8] = '- %d nivel',
+[9] = '- %d reinicia',
+[10] = '- %d MResets',
+[11] = '- %d Zen',
+[12] = '- %d WcoinC',
+[13] = '- %d WcoinP',
+[14] = '- %d GlobinPoint',
+[15] = '- %d Ruud',
+[16] = '- %d muertes',
+[17] = '- %s',
+[18] = '- Mata a %s (%d/%d)',
+[19] = '- Obtener %dx %s',
+[20] = 'Premios:',
+[21] = '�La misi�n ha sido completada!',
+[22] = 'Continuar',
+[23] = 'Cerrar',
+}
+
+
+QuestSystem = {}
+QuestSystem.OpenedByPlayer = 0
+QuestSystem.AlwaysContinue = QuestSystem.AlwaysContinue or {}
+local QuestSystemInfo = {}
+local QuestSystemInfoMonsterKill = {}
+local QuestSystemInfoItensCount = {}
+local QuestSystemFinishedQuest = 0
+local lastAccountName = "" -- Variable para rastrear el cambio de cuenta
+local QuestSystemPlayerStats = {}
+QuestSystem.IsLoading = false
+QuestSystemCanStart = false
+local QuestSystemVisible = 0
+
+QuestSystem.FinishAnim = {
+    Active = false,
+    StartTime = 0,
+    QuestName = "",
+    Duration = 10.0, -- Duración total en segundos
+}
+
+-- Posición de la ventana principal (se autogestiona)
+local m_Pos = { x = 0, y = 0 } 
+
+-- Botón del HUD para abrir el sistema (mantenlo si lo usas)
+local m_BtnQuest = { x = 610, y = 240, w = 25, h = 25}
+
+local WinW = 250
+local WinH = 270
+
+function QuestSystem.GetCenterPos()
+    local x = (640 / 2) - (WinW / 2) + ReturnWideScreenX()
+    local y = (500 / 2) - (WinH / 2)
+    return x, y
+end
+
+function QuestSystem.IsMouseOver()
+    if QuestSystemVisible ~= 1 then return false end
+    
+    local x, y = QuestSystem.GetCenterPos()
+    local MouseX, MouseY = MousePosX(), MousePosY()
+    -- Usamos WinW y WinH que ya tienes definidos (250x270)
+    
+    return MouseX >= x and MouseX <= x + WinW and MouseY >= y and MouseY <= y + WinH
+end
+
+function QuestSystem.RenderLoading()
+    local x, y = m_Pos.x, m_Pos.y
+    local WinW, WinH = 250, 270
+
+    -- Texto principal (Brillante)
+    SetFontType(1)
+    SetTextColor(255, 255, 100, 255) -- Amarillo
+    RenderText3(x, y + (WinH / 2) - 10, "LOADING...", WinW, 3)
+
+    -- Subtexto (Más suave)
+    SetTextColor(150, 150, 150, 255)
+    RenderText3(x, y + (WinH / 2) + 5, "Checking data status...", WinW, 3)
+end
+
+function QuestSystem.Render()
+    -- IMPORTANTE: La animación va PRIMERO para que no la tape nada
+    QuestSystem.RenderFinishNotification()
+
+    -- Luego lo demás
+    QuestSystem.RenderQuest()
+
+    -- Si la ventana está abierta, no limpiamos el blend todavía
+    if QuestSystemVisible == 1 then return end
+
+    if Utils.CheckWindow() then return end
+
+    EnableAlphaTest()
+    glColor4f(1.0, 1.0, 1.0, 1.0)
+    DisableAlphaBlend()
+end
+
+function QuestSystem.RenderQuest()
+    if QuestSystemVisible ~= 1
+    then
+        return
+    end
+
+    EnableAlphaTest()
+
+    glColor4f(1.0, 1.0, 1.0, 1.0)
+	
+	QuestSystem.RenderFrame()
+	QuestSystem.RenderTexts()
+    DisableAlphaBlend()
+end
+
+function QuestSystem.RenderFrame()
+    local x, y = QuestSystem.GetCenterPos()
+    local WinW, WinH = 250, 270
+    m_Pos.x, m_Pos.y = x, y 
+
+    -- [ FONDO Y BORDES ] - (Mantener igual que tu código)
+    EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
+    glColor4f(0.0, 0.0, 0.0, 0.8); DrawBar(x - 4, y - 3, WinW + 7, WinH + 5); EndDrawBar()
+    glColor3f(1.0, 1.0, 1.0)
+    RenderImage(31340, x - 4, y - 3, 14, 14)
+    RenderImage(31341, x + WinW - 9, y - 3, 14, 14)
+    RenderImage(31342, x - 4, y + WinH - 8, 14, 14)
+    RenderImage(31343, x + WinW - 9, y + WinH - 8, 14, 14)
+    for i = (x + 10), (x + WinW - 9), 1 do RenderImage(31344, i, y - 3, 1, 14); RenderImage(31345, i, y + WinH - 8, 1, 14) end
+    for i = (y + 11), (y + WinH - 8), 1 do RenderImage(31346, x - 4, i, 14, 1); RenderImage(31347, x + WinW - 9, i, 14, 1) end
+
+    -- Botón de salida (X)
+    local closeX, closeY = x + WinW - 25, y + 10
+    if MousePosX() >= closeX and MousePosX() <= closeX + 15 and MousePosY() >= closeY and MousePosY() <= closeY + 15 then
+        SetTextColor(255, 50, 50, 255)
+    else
+        SetTextColor(200, 200, 200, 255)
+    end
+    RenderText3(closeX, closeY, "X", 15, 3)
+
+    if QuestSystem.IsLoading then DisableAlphaBlend(); return end
+
+    -- LÓGICA DE BOTÓN DE ACCIÓN
+    local isStarted = (QuestSystemInfo and tonumber(QuestSystemInfo.Started or 0) == 1)
+    local canCollectState = (QuestSystemInfo and tonumber(QuestSystemInfo.CanCollectLocal or 0)) or 0
+    local hasActiveID = (QuestSystem.CurrentQuestID or 0) > 0
+
+    if QuestSystem.OpenedByPlayer == 1 or canCollectState == 2 or QuestSystemFinishedQuest == 1 or hasActiveID then
+        local btnText = ""
+        local isClickable = true
+
+        if QuestSystemFinishedQuest == 1 then
+            btnText = "CONTINUAR"
+        elseif canCollectState == 2 then
+            btnText = "MISIÓN EN CURSO"; isClickable = false
+        elseif canCollectState == 1 then
+            btnText = "COLLECT REWARD"
+        elseif isStarted then
+            btnText = "INCOMPLETO"; isClickable = false
+        else
+            btnText = "START"
+            -- BLOQUEO CRÍTICO: Si no cumple requisitos, el botón NO es clickable
+            if not QuestSystemCanStart then
+                isClickable = false
+            end
+        end
+
+        local actionX, actionY = x, y + WinH - 32
+        local isHoverAction = MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= actionY - 5 and MousePosY() <= actionY + 15
+        
+        if not isClickable then 
+            SetTextColor(80, 80, 80, 255) -- Gris oscuro (Bloqueado)
+        elseif isHoverAction then 
+            SetTextColor(255, 255, 100, 255) -- Amarillo (Hover)
+        else 
+            SetTextColor(225, 225, 225, 255) -- Blanco (Normal)
+        end
+
+        RenderText3(actionX, actionY, btnText, WinW, 3)
+    end
+
+    glColor3f(1.0, 1.0, 1.0)
+end
+
+function QuestSystem.RenderButtom(x, y, width, height, text)
+    -- Detectamos si el mouse está sobre el botón
+    local isHover = MousePosX() >= x and MousePosX() <= x + width and MousePosY() >= y and MousePosY() <= y + height
+
+    if isHover then
+        -- Textura de iluminación (Hover)
+        RenderImage2(31326, x, y, width, height, 0, 0.2264566, 1.0, 0.2245212, 1, 1, 1.0)
+        SetTextColor(255, 255, 160, 255) -- Un tono amarillento para resaltar el texto
+    else
+        -- Textura Normal
+        RenderImage2(31326, x, y, width, height, 0, 0, 1.0, 0.2245212, 1, 1, 1.0)
+        SetTextColor(225, 225, 225, 255) -- Blanco estándar
+    end
+    
+    SetFontType(1)
+    SetTextBg(0, 0, 0, 0)
+    
+    -- Centrado dinámico:
+    -- Usamos el 'width' total del botón y el modo '3' para que el motor lo centre solo.
+    -- El ajuste 'y + 5' (o height/2 - 5) asegura que quede centrado verticalmente.
+    RenderText3(x, y + 5, text, width, 3)
+end
+
+function QuestSystem.RenderTexts()
+    EnableAlphaTest(); SetFontType(1); SetTextBg(0, 0, 0, 0)
+    local x, y = m_Pos.x, m_Pos.y
+    local WinW = 250
+
+    -- Título Magenta (Siempre se ve)
+    SetTextColor(255, 0, 255, 255)
+    RenderText3(x, y + 11, QUEST_SYSTEM_MESSAGES[GetLanguage()][1], WinW, 3)
+
+    -- [NUEVO] Si está cargando, dibujamos el loading y salimos
+    if QuestSystem.IsLoading then
+        QuestSystem.RenderLoading()
+        return
+    end
+
+    -- Pantalla de "Ya terminaste por hoy"
+    if QuestSystemFinishedQuest == 1 then
+        SetTextColor(225, 225, 225, 255)
+        RenderText3(x, y + 100, QUEST_SYSTEM_MESSAGES[GetLanguage()][21], WinW, 3)
+        return
+    end
+
+    -- LÓGICA DE DIBUJO: DETALLE vs LISTA (Solo si no está cargando)
+    if QuestSystem.OpenedByPlayer == 1 and QuestSystemInfo and QuestSystemInfo.QuestIdentification then
+        -- MUESTRA PROGRESO
+        SetTextColor(255, 200, 50, 255)
+        RenderText3(x, y + 40, QuestSystemInfo.QuestName or "Misión", WinW, 3)
+        local requirementsOffset = QuestSystem.RenderTextRequirements(QuestSystemInfo)
+        QuestSystem.RenderTextReward(QuestSystemInfo, requirementsOffset)
+    else
+        -- MUESTRA LISTA
+        SetTextColor(255, 255, 100, 255)
+        RenderText3(x, y + 65, QUEST_SYSTEM_MESSAGES[GetLanguage()][3], WinW, 3)
+        
+        local displayList = QuestSystemAvailableList or {}
+        if #displayList == 0 then
+            SetTextColor(150, 150, 150, 255)
+            RenderText3(x, y + 100, "No hay misiones disponibles aquí.", WinW, 3)
+        else
+            local listY = y + 90
+            for idx, q in ipairs(displayList) do
+                local ly = listY + ((idx-1) * 14)
+                
+                -- Buscamos la configuración local para saber si es OneTime
+                local qDef = QuestSystem.GetQuestIdentification(q.QuestIdentification)
+                local isOneTime = (qDef and qDef.IsOneTime == 1)
+                
+                -- LÓGICA DE COLORES Y PREFIJO
+                local questPrefix = ""
+                if isOneTime then
+                    questPrefix = "[!] " -- Signo de admiración para únicas
+                    if MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= ly and MousePosY() <= ly + 12 then
+                        SetTextColor(255, 180, 50, 255) -- Naranja brillante (Hover)
+                    else
+                        SetTextColor(255, 140, 0, 255)  -- Naranja oscuro (Normal)
+                    end
+                else
+                    questPrefix = "[!] " 
+                    if MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= ly and MousePosY() <= ly + 12 then
+                        SetTextColor(255, 255, 150, 255) -- Amarillo (Hover)
+                    else
+                        SetTextColor(0, 250, 154, 255)   -- Verde menta original (Normal)
+                    end
+                end
+                
+                RenderText3(x + 20, ly, string.format("%s%s", questPrefix, q.QuestName), WinW - 40, 3)
+            end
+        end
+    end
+    DisableAlphaBlend()
+end
+
+function QuestSystem.RenderTextRequirements(questInfo)
+    local WinW = 250
+    local x, y = m_Pos.x, m_Pos.y
+    local titleY, m_Y = y + 65, y + 80
+    local addY = 0
+    
+    QuestSystemCanStart = true
+    if not questInfo or not questInfo.QuestIdentification then QuestSystemCanStart = false; return 0 end
+
+    local qDef = QuestSystem.GetQuestIdentification(questInfo.QuestIdentification)
+    if not qDef then QuestSystemCanStart = false; return 0 end
+
+    SetTextColor(255, 255, 255, 255); RenderText3(x, titleY, QUEST_SYSTEM_MESSAGES[GetLanguage()][7], WinW, 3)
+    
+    local function RenderReqLine(text, isMet, blocksStart)
+        if isMet then 
+            SetTextColor(172, 255, 56, 255) -- Verde
+        else 
+            SetTextColor(255, 50, 50, 255)   -- ROJO
+            if blocksStart then QuestSystemCanStart = false end
+        end
+        RenderText3(x, m_Y + addY, "[!] " .. text:gsub("^%- ", ""), WinW, 3)
+        addY = addY + 11
+    end
+    
+    local lang = GetLanguage()
+    
+    -- [REPARACIÓN CRÍTICA] Comparamos contra QuestSystemPlayerStats
+    if (qDef.Level or 0) > 0 then 
+        RenderReqLine(string.format(QUEST_SYSTEM_MESSAGES[lang][8], qDef.Level), (QuestSystemPlayerStats.Level or 0) >= qDef.Level, true) 
+    end
+    
+    if (qDef.Reset or 0) > 0 then 
+        RenderReqLine(string.format(QUEST_SYSTEM_MESSAGES[lang][9], qDef.Reset), (QuestSystemPlayerStats.Resets or 0) >= qDef.Reset, true) 
+    end
+    
+    if (qDef.Zen or 0) > 0 then 
+        RenderReqLine(string.format(QUEST_SYSTEM_MESSAGES[lang][11], qDef.Zen), (QuestSystemPlayerStats.Zen or 0) >= qDef.Zen, true) 
+    end
+
+    if (qDef.Coin4 or 0) > 0 then 
+        RenderReqLine(string.format(QUEST_SYSTEM_MESSAGES[lang][15], qDef.Coin4), (QuestSystemPlayerStats.Coin4 or 0) >= qDef.Coin4, true) 
+    end
+    -- 4. REQUISITOS DE MONSTRUOS
+    local npc = QuestSystemCurrentNPC or 0
+    local map = QuestSystem.CurrentMapID or 0
+    local monsterKey = string.format("%d_%d_%d", npc, map, questInfo.QuestIdentification)
+    local monsterList = QUEST_SYSTEM_REQUIREMENTS_MONSTER[monsterKey] or QUEST_SYSTEM_REQUIREMENTS_MONSTER[questInfo.QuestIdentification]
+
+    if monsterList then
+        for idx, mon in ipairs(monsterList) do
+            if idx > 5 then break end
+            local reqQty = mon.Quantity or 0
+            local curKills = (questInfo.KillsMonster and questInfo.KillsMonster[idx]) or 0
+            local met = (curKills >= reqQty)
+    
+            if met or (startedClient and canCollectClient) then
+                SetTextColor(172, 255, 56, 255)
+                RenderText3(x, m_Y + addY, string.format("[!] %s: %d ✔️", mon.MonsterName or "Monster", reqQty), WinW, 3)
+            else
+                -- Si no empezó, blanco informativo. Si empezó, rojo/naranja de progreso.
+                if startedClient then SetTextColor(255, 69, 0, 255) else SetTextColor(225, 225, 225, 255) end
+                RenderText3(x, m_Y + addY, string.format("[!] %s: %d/%d", mon.MonsterName or "Monster", curKills, reqQty), WinW, 3)
+            end
+            addY = addY + 11
+        end
+    end
+
+    -- 5. REQUISITOS DE ÍTEMS (¡Agregado!)
+    local itemKey = string.format("%d_%d_%d", npc, map, questInfo.QuestIdentification)
+    local itemReqList = QUEST_SYSTEM_REQUIREMENTS_ITEMS[itemKey] or QUEST_SYSTEM_REQUIREMENTS_ITEMS[questInfo.QuestIdentification]
+
+    if itemReqList then
+        for idx, it in ipairs(itemReqList) do
+            if idx > 5 then break end
+            local reqQty = it.Quantity or 0
+            -- Leemos de la tabla que cargamos en OpenNPC
+            local haveQty = (questInfo.ItemsCount and questInfo.ItemsCount[idx]) or (QuestSystemInfoItensCount and QuestSystemInfoItensCount[idx]) or 0
+            local met = (haveQty >= reqQty)
+
+            if met or (startedClient and canCollectClient) then
+                SetTextColor(172, 255, 56, 255) -- Verde
+                RenderText3(x, m_Y + addY, string.format("[!] %s: %d ✔️", it.ItemName or "Item", reqQty), WinW, 3)
+            else
+                -- Si NO tiene los ítems y la misión NO ha empezado, bloqueamos el START y ponemos ROJO
+                SetTextColor(255, 50, 50, 255)
+                if not startedClient then QuestSystemCanStart = false end
+                RenderText3(x, m_Y + addY, string.format("[!] %s: %d/%d", it.ItemName or "Item", haveQty, reqQty), WinW, 3)
+            end
+            addY = addY + 11
+        end
+    end
+    
+    return addY
+end
+
+function QuestSystem.RenderTextReward(questInfo, offsetY)
+    if QuestSystemVisible ~= 1 then return end
+    
+    local WinW = 250
+    local x, y = m_Pos.x, m_Pos.y
+    local titleY = y + 80 + offsetY + 15 
+    local m_Y = titleY + 15
+    local addY = 0
+    
+    -- TÍTULO: PREMIOS (Ya estaba centrado)
+    SetTextColor(255, 189, 25, 255)
+    RenderText3(x, titleY, QUEST_SYSTEM_MESSAGES[GetLanguage()][20], WinW, 3)
+    
+    SetFontType(1)
+    SetTextColor(225, 225, 225, 255)
+    
+    local qid = (questInfo and questInfo.QuestIdentification) or QuestSystem.CurrentQuestID or 0
+    local currentMap = QuestSystem.CurrentMapID or UserGetMap() or 0
+    local currentNPC = QuestSystemCurrentNPC or QuestSystem.ActiveQuestNPC or 0
+    
+    local serverKey = string.format("%d_%d_%d", currentNPC, currentMap, qid)
+    local mapKey    = string.format("%d_%d", currentMap, qid)
+    local npcKey    = string.format("%d_%d", currentNPC, qid)
+    
+    local function findInTable(tbl)
+        if not tbl then return nil end
+        if tbl[serverKey] then return tbl[serverKey] end
+        if tbl[mapKey] then return tbl[mapKey] end
+        if tbl[npcKey] then return tbl[npcKey] end
+        if tbl[qid] then return tbl[qid] end
+        
+        for k, v in pairs(tbl) do
+            if type(k) == "string" then
+                local last = tonumber((string.match(k, "([^_]+)$")))
+                if last and last == tonumber(qid) then return v end
+            elseif type(k) == "number" and k == tonumber(qid) then
+                return v
+            end
+        end
+        return nil
+    end
+    
+    local rewards = {
+        {d = findInTable(QUEST_SYSTEM_REWARD_ITEMS), t = "item"},
+        {d = findInTable(QUEST_SYSTEM_REWARD_COINS), t = "coin"},
+        {d = findInTable(QUEST_SYSTEM_REWARD_BUFF),  t = "buff"},
+        {d = findInTable(QUEST_SYSTEM_REWARD_EXP),   t = "exp"},
+        {d = findInTable(QUEST_SYSTEM_POINTS_REWARDS), t = "pts"}
+    }
+    
+    local any = false
+    for _, res in ipairs(rewards) do
+        if res.d and next(res.d) then
+            any = true
+            for _, v in pairs(res.d) do
+                local txt = ""
+                -- Cambio de prefijo "-" por "[!]" y lógica de centrado
+                if res.t == "item" and (v.Class == -1 or v.Class == UserGetClass()) then
+                    txt = string.format("* %s", v.Name or (GetNameByIndex and GetNameByIndex(v.ItemIndex)) or "Item")
+                elseif res.t == "coin" then
+                    txt = string.format("* %d %s", v.CoinAmount, v.CoinName or "Coins")
+                elseif res.t == "buff" then
+                    txt = string.format("* %s", v.BuffName or "Buff")
+                elseif res.t == "exp" then
+                    local expNames = {"Exp", "Master Exp", "Level Up", "Master Level Up"}
+                    txt = string.format("* %d %s", v.Amount, v.ExpName or expNames[v.ExpId] or "Exp")
+                elseif res.t == "pts" and (v.Amount or 0) > 0 then
+                    local statNames = {"Puntos Libres", "Fuerza", "Agilidad", "Vitalidad", "Energia", "Comando"}
+                    txt = string.format("* %d %s", v.Amount, v.StatName or statNames[v.PtsID] or "Puntos")
+                end
+                
+                if txt ~= "" then
+                    -- Centrado: x directo, WinW completo y modo 3
+                    RenderText3(x, m_Y + addY, txt, WinW, 3)
+                    addY = addY + 10
+                end
+            end
+        end
+    end
+    
+    if not any then
+        SetTextColor(150, 150, 150, 255)
+        -- También centramos el mensaje de "No hay recompensas"
+        RenderText3(x, m_Y + addY, '[!] No hay recompensas visibles', WinW, 3)
+    end
+end
+
+function QuestSystem.UpdateMouse()
+    if QuestSystemVisible ~= 1 then return 0 end
+    if QuestSystem.IsLoading then return 1 end 
+    
+    if QuestSystem.IsMouseOver() then
+        if type(DisableClickClient) == "function" then DisableClickClient() end
+        if type(MouseLButtonPush) == "function" then MouseLButtonPush(0) end
+
+        if QuestSystem.ClickLock then
+            if CheckPressedKey(Keys.LButton) == 0 then QuestSystem.ClickLock = false end
+            return 1 
+        end
+
+        local MouseX, MouseY = MousePosX(), MousePosY()
+        local x, y = QuestSystem.GetCenterPos()
+
+        -- 1. BOTÓN CERRAR (X)
+        if MouseX >= x + 215 and MouseX <= x + 250 and MouseY >= y and MouseY <= y + 30 then
+            if CheckPressedKey(Keys.LButton) == 1 then 
+                QuestSystem.CloseAll()
+                QuestSystem.ClickLock = true
+                return 1
+            end
+        end
+
+        -- 2. LISTA DE MISIONES
+        if QuestSystem.OpenedByPlayer == 0 and (QuestSystemFinishedQuest or 0) ~= 1 then
+            local listY = y + 90
+            local displayList = QuestSystemAvailableList or {}
+            for idx, q in ipairs(displayList) do
+                local ly = listY + ((idx - 1) * 14)
+                if MouseX >= x + 20 and MouseX <= x + 230 and MouseY >= ly and MouseY <= ly + 14 then
+                    if CheckPressedKey(Keys.LButton) == 1 then
+                        QuestSystem.OpenedByPlayer = 1
+                        QuestSystem.CurrentQuestID = tonumber(q.QuestIdentification)
+                        QuestSystemInfo = {}
+                        for k, v in pairs(q) do QuestSystemInfo[k] = v end
+                        
+                        if QuestSystem.HUD_ID > 0 and QuestSystem.CurrentQuestID == QuestSystem.HUD_ID then
+                            QuestSystemInfo.Started = 1
+                            QuestSystemInfo.CanCollectLocal = tonumber(QuestSystem.HUD_Data.CanCollect or 0)
+                        else
+                            QuestSystemInfo.Started = 0
+                            QuestSystemInfo.CanCollectLocal = (QuestSystem.HUD_ID > 0) and 2 or 0
+                        end
+                        QuestSystem.ClickLock = true
+                        return 1 
+                    end
+                end
+            end
+        else
+            -- 3. BOTÓN DE ACCIÓN
+            local actionY = y + 238
+            if MouseX >= x + 20 and MouseX <= x + 230 and MouseY >= actionY - 5 and MouseY <= actionY + 15 then
+                if CheckPressedKey(Keys.LButton) == 1 then
+                    local canCollect = tonumber(QuestSystemInfo and QuestSystemInfo.CanCollectLocal or 0)
+                    
+                    if QuestSystemFinishedQuest == 1 then
+                        QuestSystem.ContinueQuest()
+                    elseif canCollect == 1 then
+                        QuestSystem.GetReward()
+                    elseif tonumber(QuestSystemInfo and QuestSystemInfo.Started or 0) == 0 then
+                        -- BLOQUEO TOTAL: Si no puede empezar, ni siquiera enviamos el paquete
+                        if QuestSystemCanStart then
+                            QuestSystem.StartQuest(QuestSystemInfo.QuestIdentification)
+                        else
+                            -- Opcional: Sonido de error o mensaje local
+                            -- LogAddC(2, "No cumples los requisitos para empezar.")
+                        end
+                    end
+                    QuestSystem.ClickLock = true
+                    return 1 
+                end
+            end
+        end
+        return 1 
+    end
+    return 0 
+end
+
+function QuestSystem.TriggerFinishNotification(questName)
+    QuestSystem.FinishAnim.QuestName = questName or "Misión"
+    QuestSystem.FinishAnim.StartTime = os.clock() -- Captura el tiempo actual
+    QuestSystem.FinishAnim.Active = true
+end
+
+function QuestSystem.RenderFinishNotification()
+    if not QuestSystem.FinishAnim.Active then return end
+
+    local elapsed = os.clock() - QuestSystem.FinishAnim.StartTime
+    local duration = QuestSystem.FinishAnim.Duration
+
+    if elapsed > duration then
+        QuestSystem.FinishAnim.Active = false
+        return
+    end
+
+    -- 1. Alpha para el desvanecimiento del texto
+    local alpha = 1.0
+    if elapsed < 0.5 then 
+        alpha = elapsed / 0.5
+    elseif elapsed > (duration - 1.0) then 
+        alpha = (duration - elapsed) / 1.0 
+    end
+    local aInt = math.floor(alpha * 255)
+    
+    -- 2. Coordenadas base
+    local screenWidth = 640
+    local fullX = ReturnWideScreenX()
+    local startY = 150 
+    local renderWidth = 600
+    local startX = (screenWidth / 2) - (renderWidth / 2) + fullX
+
+    ---------------------------------------------------------
+    -- DIBUJO DEL ICONO (Limpio y sin Brillos)
+    ---------------------------------------------------------
+    --local imgID = 40017
+    --local imgW, imgH = 50, 50
+    --local imgX = (screenWidth / 2) - (imgW / 2) + fullX
+    
+    -- Para evitar el "brillo" excesivo y quitar el fondo negro:
+    --EnableAlphaTest()   -- Corta el fondo negro de la imagen
+    --EnableAlphaBlend()  -- Permite transparencia suave
+    
+    -- Seteamos color blanco puro al 100% para que la imagen no brille de más
+    --glColor3f(1.0, 1.0, 1.0)
+    --
+    --RenderImage2(imgID, imgX, startY, imgW, imgH, 0, 0, 1, 1, 1, 1, 1)
+
+    ---------------------------------------------------------
+    -- DIBUJO DE LOS TEXTOS (Con Sombra Básica)
+    ---------------------------------------------------------
+    local function RenderGiantWithBorder(posY, text, color)
+        SetFontType(1)
+		
+        
+        -- Sombra negra sólida (4 puntos para que se lea bien)
+        --SetTextColor(0, 0, 0, aInt)
+        --RenderText3(startX + 1, posY + 1, text, renderWidth, 3)
+        --RenderText3(startX - 1, posY - 1, text, renderWidth, 3)
+
+        -- Texto principal
+        SetTextColor(color[1], color[2], color[3], aInt)
+        RenderText3(startX, posY, text, renderWidth, 3)
+    end
+
+    -- Posiciones corregidas para que no se pisen (Damos 15px de espacio)
+    RenderGiantWithBorder(startY + 45, QuestSystem.FinishAnim.QuestName, {169, 169, 169})
+    RenderGiantWithBorder(startY + 55, "COMPLETED!", {34, 139, 34})
+
+    DisableAlphaBlend()
+end
+
+function QuestSystem.UpdateKeyEvent()
+    if QuestSystemVisible ~= 1
+    then
+        return
+    end
+
+    if (CheckPressedKey(Keys.Escape) == 1)
+	then
+		QuestSystem.Close()
+	end
+end
+
+function QuestSystem.UpdateProc()
+    local currentName = UserGetName()
+    if lastAccountName ~= currentName then
+        QuestSystem.ResetAllData()
+        lastAccountName = currentName
+    end
+
+    m_BtnQuest.x = (610 + (ReturnWideScreenX() * 2))
+
+    if QuestSystemVisible ~= 1 then
+        -- Opcional: Desbloquear el caminar si se cerró por una ventana del juego
+        if type(UnlockPlayerWalk) == "function" then UnlockPlayerWalk() end
+        return
+    end
+
+    -- Auto-cierre de la ventana si se abren otras interfaces
+    local windows = {
+        UIInventory, UIFriendList, UIMoveList, UIParty, UIQuest, UIGuild, UITrade,
+        UIWarehouse, UIChaosBox, UICommandWindow, UIPetInfo, UIShop, UIStore,
+        UIOtherStore, UICharacter, UIOptions, UIHelp, UIFastDial, UISkillTree,
+        UINPC_Titus, UICashShop, UIFullMap, UINPC_Dialog, UIGensInfo, UINPC_Julia,
+        UIExpandInventory, UIExpandWarehouse, UIMuHelper
+    }
+
+    for _, winID in ipairs(windows) do
+        if CheckWindowOpen(winID) == 1 then 
+            QuestSystem.Close() 
+            break
+        end
+    end
+    
+    -- Bloqueo físico de movimiento (si el emulador lo soporta)
+    if type(LockPlayerWalk) == "function" then LockPlayerWalk() end
+end
+
+function QuestSystem.ResetAllData()
+    QuestSystemVisible = 0
+    QuestSystemHUDVisible = 0
+    QuestSystemFinishedQuest = 0
+    QuestSystem.CurrentQuestID = 0
+    QuestSystem.HUD_ID = 0
+    QuestSystem.OpenedByPlayer = 0
+    QuestSystemInfo = nil
+    QuestSystemInfoMonsterKill = nil
+    QuestSystemAvailableList = {}
+    QuestSystem.HUD_Data = { Kills = {0,0,0,0,0,0,0,0,0}, CanCollect = 0 }
+    QuestSystem.ClickLock = nil
+end
+
+function QuestSystem.CheckOpen()
+    return QuestSystemVisible
+end
+
+function QuestSystem.GetQuestIdentification(id)
+    if not id or id == 0 then return nil end
+    
+    local searchId = tonumber(id)
+
+    -- 1. Buscar en la tabla por MAPAS (Nueva estructura)
+    if QUEST_SYSTEM_BY_MAP then
+        for mapId, questList in pairs(QUEST_SYSTEM_BY_MAP) do
+            for _, q in ipairs(questList) do
+                if tonumber(q.QuestIdentification) == searchId then 
+                    return q 
+                end
+            end
+        end
+    end
+
+    -- 2. Buscar en la tabla por NPC
+    if QUEST_SYSTEM_INFO_BY_NPC then
+        for npcId, questList in pairs(QUEST_SYSTEM_INFO_BY_NPC) do
+            for _, q in ipairs(questList) do
+                if tonumber(q.QuestIdentification) == searchId then 
+                    return q 
+                end
+            end
+        end
+    end
+
+    -- 3. Buscar en la tabla plana/global
+    if QUEST_SYSTEM_INFO then
+        for _, q in pairs(QUEST_SYSTEM_INFO) do
+            if tonumber(q.QuestIdentification) == searchId then 
+                return q 
+            end
+        end
+    end
+
+    return nil
+end
+
+function QuestSystem.Close()
+    QuestSystemVisible = 0
+    QuestSystemFinishedQuest = 0 -- Resetear esto para que no quede trabado en "Continuar"
+    QuestSystemInfo = nil
+    QuestSystemInfoMonsterKill = nil
+    QuestSystemInfoItensCount = nil
+end
+
+-- Nueva función para cierre TOTAL (Ventana + HUD)
+function QuestSystem.CloseAll()
+    QuestSystem.Close()
+    QuestSystemHUDVisible = 0 -- Apagamos el HUD magenta
+    QuestSystem.HUD_ID = 0    -- Limpiamos el ID del HUD
+    if type(ShowAllInterface) == "function" then ShowAllInterface() end
+end
+
+function QuestSystem.OpenNPC(PacketName)
+    local npc_id_in = GetDwordPacket(PacketName, -1) or 0
+    local map_id_in = GetDwordPacket(PacketName, -1) or 0
+    local qid_in    = GetDwordPacket(PacketName, -1) or 0
+
+    if qid_in == 0xFFFFFFFF then
+        QuestSystem.IsLoading = true; QuestSystemVisible = 1; return 
+    end
+
+    QuestSystem.IsLoading = false
+    QuestSystemInfo = {}
+    QuestSystemInfoMonsterKill = {}
+    QuestSystemInfoItensCount = {}
+    QuestSystemAvailableList = {}
+
+    QuestSystemCurrentNPC = npc_id_in
+    QuestSystem.CurrentMapID = map_id_in
+    local qid_active_server = qid_in
+
+    -- Leer Stats
+    QuestSystemPlayerStats.Level = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Resets = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.MResets = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Zen = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin1 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin2 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin3 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin4 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Vip = GetDwordPacket(PacketName, -1) or 0
+    
+    local controlFlag = GetDwordPacket(PacketName, -1) or 0 
+    
+    -- [REPARACIÓN CRÍTICA] 
+    -- Asignamos el valor del paquete directamente a la variable GLOBAL
+    QuestSystemFinishedQuest = GetBytePacket(PacketName, -1) or 0
+
+    -- Leer Progreso Principal
+    for i = 1, 9 do QuestSystemInfoMonsterKill[i] = GetDwordPacket(PacketName, -1) or 0 end
+    for i = 1, 10 do QuestSystemInfoItensCount[i] = GetDwordPacket(PacketName, -1) or 0 end
+
+    -- Leer Lista
+    local questCount = GetDwordPacket(PacketName, -1) or 0
+    for i = 1, questCount do
+        local q_id = GetDwordPacket(PacketName, -1) or 0
+        local q_f = GetDwordPacket(PacketName, -1) or 0
+        local q_c = GetDwordPacket(PacketName, -1) or 0
+        local kills_list = {}
+        for j = 1, 9 do kills_list[j] = GetDwordPacket(PacketName, -1) or 0 end
+        
+        local qDef = QuestSystem.GetQuestIdentification(q_id) or { QuestIdentification = q_id }
+        table.insert(QuestSystemAvailableList, {
+            QuestIdentification = q_id,
+            QuestName = qDef.QuestName or "Misión "..q_id,
+            Finished = q_f,
+            CanCollect = q_c,
+            KillsMonster = kills_list
+        })
+    end
+
+    -- Determinación de Vista
+    -- Si la misión está terminada hoy (QuestSystemFinishedQuest == 1), NO entramos en modo detalle
+    if qid_active_server > 0 and QuestSystemFinishedQuest == 0 and controlFlag ~= 2 then
+        QuestSystem.OpenedByPlayer = 1
+        QuestSystem.CurrentQuestID = qid_active_server
+        QuestSystemInfo.Started = 1
+        QuestSystemInfo.CanCollectLocal = controlFlag
+        local base = QuestSystem.GetQuestIdentification(qid_active_server)
+        if base then for k,v in pairs(base) do QuestSystemInfo[k] = v end end
+        QuestSystemInfo.QuestIdentification = qid_active_server
+        QuestSystemInfo.KillsMonster = QuestSystemInfoMonsterKill
+        QuestSystemInfo.ItemsCount = QuestSystemInfoItensCount
+    else
+        -- Modo Lista o modo "Misión Concluida"
+        QuestSystem.OpenedByPlayer = 0
+        QuestSystem.CurrentQuestID = 0
+        QuestSystemInfo = { Started = 0, CanCollectLocal = controlFlag }
+    end
+
+    QuestSystemVisible = 1
+    if type(HideAllInterface) == "function" then HideAllInterface() end
+end
+
+function QuestSystem.SyncHUD(PacketName)
+    -- Inicialización segura de tablas
+    QuestSystem.HUD_Data = QuestSystem.HUD_Data or {}
+    QuestSystem.HUD_Data.Kills = QuestSystem.HUD_Data.Kills or {}
+    QuestSystem.HUD_Data.Items = QuestSystem.HUD_Data.Items or {}
+    QuestSystemPlayerStats = QuestSystemPlayerStats or {}
+
+    -- 1. HEADER (Vital para saber qué misión es y de qué NPC)
+    local npc_id_in = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemCurrentNPC = npc_id_in -- Guardamos el NPC para que el Render sepa qué buscar
+    
+    QuestSystem.CurrentMapID = GetDwordPacket(PacketName, -1) or 0
+    local qid = GetDwordPacket(PacketName, -1) or 0
+    
+    -- 2. ACTUALIZACIÓN DE STATS (Para que los requisitos en rojo/verde cambien en vivo)
+    QuestSystemPlayerStats.Level = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Resets = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.MResets = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Zen = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin1 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin2 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin3 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Coin4 = GetDwordPacket(PacketName, -1) or 0
+    QuestSystemPlayerStats.Vip = GetDwordPacket(PacketName, -1) or 0
+    
+    -- 3. ESTADOS DE FINALIZACIÓN
+    local controlState = GetDwordPacket(PacketName, -1) or 0 
+    local isFinished = GetBytePacket(PacketName, -1) or 0
+    
+    -- Si la ID es 0, significa que no hay misión activa: apagamos HUD
+    if qid == 0 then
+        QuestSystemHUDVisible = 0
+        QuestSystem.HUD_ID = 0
+        return
+    end
+
+    -- 4. GUARDAR PROGRESO PARA EL DIBUJO DEL HUD
+    QuestSystem.HUD_ID = qid
+    -- Si el estado es 1 (Completo) o 2 (Remoto), el HUD se mantiene activo
+    QuestSystem.HUD_Data.CanCollect = (controlState >= 1 and 1 or 0)
+
+    -- Leemos los 9 slots de Monstruos
+    for i = 1, 9 do 
+        QuestSystem.HUD_Data.Kills[i] = GetDwordPacket(PacketName, -1) or 0 
+    end
+    
+    -- Leemos los 10 slots de Ítems
+    for i = 1, 10 do 
+        QuestSystem.HUD_Data.Items[i] = GetDwordPacket(PacketName, -1) or 0 
+    end
+
+    -- Encendemos el HUD
+    QuestSystemHUDVisible = 1
+end
+
+function QuestSystem.SendOpenQuest()
+    local currentMap = (type(GetMapNumber) == "function") and GetMapNumber() or 0
+    
+    -- Limpieza visual inmediata
+    QuestSystem.IsLoading = true
+    QuestSystemVisible = 1
+    QuestSystemInfo = {}
+    QuestSystemAvailableList = {}
+    QuestSystemFinishedQuest = 0
+    
+    local packetString = string.format("%s_%s", QUEST_SYSTEM_PACKET_OPEN_NAME, UserGetName())
+    CreatePacket(packetString, QUEST_SYSTEM_PACKET)
+    SetDwordPacket(packetString, currentMap)
+    SendPacket(packetString)
+    ClearPacket(packetString)
+    
+    -- [MUY IMPORTANTE] Bloqueamos la interfaz del cliente.
+    -- Esto envía una señal al servidor de que el jugador está "ocupado".
+    if type(HideAllInterface) == "function" then HideAllInterface() end
+end
+
+function QuestSystem.StartQuest(questID)
+    local ok, err = xpcall(function()
+        local pName = UserGetName()
+		
+		-- [NUEVO] Limpiamos el bloqueo diario para que el HUD pueda aparecer
+        if QuestSystem.AlwaysContinue then 
+            QuestSystem.AlwaysContinue[pName] = nil 
+        end
+		
+        local packetString = string.format("%s_%s", QUEST_SYSTEM_PACKET_START_NAME, pName)
+        CreatePacket(packetString, QUEST_SYSTEM_PACKET)
+        SetDwordPacket(packetString, questID or 0)
+        SendPacket(packetString)
+        ClearPacket(packetString)
+    
+        -- [ ACTIVACIÓN INMEDIATA DEL HUD ]
+        QuestSystem.HUD_ID = questID or 0        -- Seteamos la ID para el HUD
+        QuestSystemHUDVisible = 1               -- Forzamos visibilidad del HUD
+        QuestSystem.HUD_Data = QuestSystem.HUD_Data or { Kills = {}, Info = {} }
+        QuestSystem.HUD_Data.Kills = {0,0,0,0,0,0,0,0,0} -- Limpiamos contadores
+        QuestSystem.HUD_Data.CanCollect = 0
+        
+        -- Datos de compatibilidad
+        QuestSystem.CurrentQuestID = questID or 0
+        QuestSystemPlayerKills = {0,0,0,0,0,0,0,0,0}
+        
+        QuestSystemVisible = 0 -- Cerramos ventana NPC
+        QuestSystem.ClickLock = true
+    end, debug.traceback)
+    
+    if not ok then
+        LogAddC(2, "QuestSystem.StartQuest ERROR: "..tostring(err))
+    end
+end
+
+function QuestSystem.GetReward()
+    if not QuestSystemInfo or tonumber(QuestSystemInfo.CanCollectLocal or 0) ~= 1 then
+        return
+    end
+
+    local qid = tonumber(QuestSystemInfo.QuestIdentification or 0)
+    if qid == 0 then return end
+
+    local packetString = string.format("%s_%s", QUEST_SYSTEM_PACKET_GET_REWARD_NAME, UserGetName())
+    CreatePacket(packetString, QUEST_SYSTEM_PACKET)
+    SetDwordPacket(packetString, qid)
+    SendPacket(packetString)
+    ClearPacket(packetString)
+    
+    -- Limpieza total inmediata para que el HUD no "parpadee"
+    QuestSystemHUDVisible = 0
+    QuestSystem.HUD_ID = 0
+    
+    QuestSystem.CloseAll()
+    QuestSystem.OpenedByPlayer = 0
+    QuestSystem.ClickLock = true
+end
+
+function QuestSystem.ContinueQuest()
+    QuestSystem.CurrentQuestID = 0
+    QuestSystem.ActiveQuestNPC = 0 
+    QuestSystemPlayerKills = {}
+    
+    local packetString = string.format("%s_%s", QUEST_SYSTEM_PACKET_CONTINUE_QUEST_NAME, UserGetName())
+    CreatePacket(packetString, QUEST_SYSTEM_PACKET)
+    SendPacket(packetString)
+    ClearPacket(packetString)
+    
+    -- Cerramos todo
+    QuestSystem.CloseAll()
+end
+
+function QuestSystem.OpenContinueQuest()
+    HideAllInterface()
+
+    QuestSystemFinishedQuest = 1
+
+    QuestSystemVisible = 1
+end
+
+function QuestSystem.Protocol(Packet, PacketName)
+    if Packet ~= QUEST_SYSTEM_PACKET then return end
+    
+    -- 1. APERTURA DESDE NPC
+    if string.find(PacketName, "QuestSystemOpen") then
+        QuestSystem.OpenNPC(PacketName)
+        ClearPacket(PacketName)
+        return
+    end
+    
+    -- 2. ACTUALIZACIÓN SILENCIOSA (HUD)
+    if string.find(PacketName, "QuestSystemHUDUpdate") then
+        QuestSystem.SyncHUD(PacketName)
+        ClearPacket(PacketName)
+        return
+    end
+    
+    -- 3. OBJETIVOS CUMPLIDOS (Cartel de aviso)
+    if string.find(PacketName, "QuestGoalMet") then
+        local qid = GetDwordPacket(PacketName, -1)
+        local qData = QuestSystem.GetQuestIdentification(qid)
+        local name = qData and qData.QuestName or "Misión"
+    
+        -- DISPARAMOS EL CARTEL VISUAL
+        QuestSystem.TriggerFinishNotification(name)
+                
+        ClearPacket(PacketName)
+        return
+    end
+    
+    -- 4. COBRO DE RECOMPENSA (Solo si el server manda este paquete al terminar)
+    if string.find(PacketName, "QuestSystemContinue") then
+        QuestSystem.Close()
+        QuestSystem.OpenContinueQuest()
+        ClearPacket(PacketName)
+        return
+    end
+end
+
+function QuestSystem.RenderMonsterHUD()
+    -- 1. VALIDACIONES DE VISIBILIDAD
+    local uname = UserGetName()
+    local always = QuestSystem.AlwaysContinue and QuestSystem.AlwaysContinue[uname]
+    if always and always.date == os.date("%Y-%m-%d") then return end
+
+    -- Solo dibujamos si hay un ID activo y el HUD está visible
+    local qid = QuestSystem.HUD_ID or 0
+    if QuestSystemVisible == 1 or QuestSystemHUDVisible == 0 or qid <= 0 then
+        return
+    end
+
+    -- Validación de ventanas del juego abiertas
+    if type(CheckWindowOpen) == "function" then
+        local okMove = (CheckWindowOpen(UIMoveList) == 1)
+        local okParty = (CheckWindowOpen(UIParty) == 1)
+        local okChat  = (CheckWindowOpen(UIChatWindow) == 1)
+        if not (okMove or okParty or okChat) then 
+            if Utils.CheckWindow() then return end
+        end
+    end
+
+    -- 2. RECUPERACIÓN DE DATOS (Monstruos e Ítems)
+    local function getMonsterReqHUD(id)
+        local key = string.format("%d_%d_%d", QuestSystemCurrentNPC or 0, QuestSystem.CurrentMapID or 0, id)
+        return QUEST_SYSTEM_REQUIREMENTS_MONSTER[key] or QUEST_SYSTEM_REQUIREMENTS_MONSTER[id]
+    end
+
+    local function getItemReqHUD(id)
+        local key = string.format("%d_%d_%d", QuestSystemCurrentNPC or 0, QuestSystem.CurrentMapID or 0, id)
+        return QUEST_SYSTEM_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_REQUIREMENTS_ITEMS[id]
+    end
+
+    local monsterList = getMonsterReqHUD(qid)
+    if not monsterList then return end
+    
+    local itemReqList = getItemReqHUD(qid)
+    local canCollect = (QuestSystem.HUD_Data and QuestSystem.HUD_Data.CanCollect == 1)
+
+    -- 3. CONFIGURACIÓN DE DIMENSIONES Y ALTURA DINÁMICA
+    local hudWidth, rightMargin, padding = 110, 100, 12
+    local startX = (720 - hudWidth - rightMargin) + (ReturnWideScreenX() * 2)
+    local startY = 320
+
+    -- Contamos cuántas líneas totales vamos a dibujar
+    local totalLines = 0
+    for _ in pairs(monsterList) do totalLines = totalLines + 1 end
+    if itemReqList then for _ in pairs(itemReqList) do totalLines = totalLines + 1 end end
+
+    local bgH = (totalLines * 13) + 40
+    local bgW = hudWidth + padding
+    local bgX, bgY = startX - (padding / 2), startY - 22
+
+    -- 4. RENDERIZADO DEL CONTENEDOR (Fondo y Bordes)
+    EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
+    
+    -- Fondo oscuro (Alpha 0.6 para que se vea profesional)
+    glColor4f(0.0, 0.0, 0.0, 0.6)
+    DrawBar(bgX, bgY, bgW, bgH)
+    EndDrawBar()
+
+    -- Dibujo de Bordes y Esquinas Originales
+    glColor3f(1.0, 1.0, 1.0)
+    RenderImage(31340, bgX - 4, bgY - 3, 14, 14) -- Esquina Sup. Izq.
+    RenderImage(31341, bgX + bgW - 9, bgY - 3, 14, 14) -- Esquina Sup. Der.
+    RenderImage(31342, bgX - 4, bgY + bgH - 8, 14, 14) -- Esquina Inf. Izq.
+    RenderImage(31343, bgX + bgW - 9, bgY + bgH - 8, 14, 14) -- Esquina Inf. Der.
+
+    -- Líneas Horizontales (Superior e Inferior)
+    for i = (bgX + 10), (bgX + bgW - 9), 1 do 
+        RenderImage(31344, i, bgY - 3, 1, 14) 
+        RenderImage(31345, i, bgY + bgH - 8, 1, 14) 
+    end
+    -- Líneas Verticales (Izquierda y Derecha)
+    for i = (bgY + 11), (bgY + bgH - 8), 1 do 
+        RenderImage(31346, bgX - 4, i, 14, 1) 
+        RenderImage(31347, bgX + bgW - 9, i, 14, 1) 
+    end
+
+    -- 5. RENDERIZADO DE TEXTOS
+    SetFontType(1); SetTextBg(0, 0, 0, 0)
+    
+    -- Título
+    SetTextColor(255, 0, 255, 255) -- Magenta
+    RenderText3(startX, startY - 15, "Quest System", hudWidth, 1)
+
+    -- Estado
+    if canCollect then
+        SetTextColor(0, 255, 0, 255); RenderText3(startX, startY, "¡Misión Completa!", hudWidth, 1)
+    else
+        SetTextColor(255, 200, 50, 255); RenderText3(startX, startY, "Objetivos:", hudWidth, 1)
+    end
+
+    local line = 1
+
+    -- Dibujar Monstruos
+    for idx, mon in ipairs(monsterList) do
+        local cur = (QuestSystem.HUD_Data.Kills and QuestSystem.HUD_Data.Kills[idx]) or 0
+        local req = mon.Quantity or 0
+        
+        if canCollect or cur >= req then 
+            SetTextColor(172, 255, 56, 255) -- Verde
+            RenderText3(startX, startY + (line * 13), string.format("- %s ✔️", mon.MonsterName), hudWidth, 1)
+        else 
+            SetTextColor(255, 255, 255, 220) -- Blanco
+            RenderText3(startX, startY + (line * 13), string.format("- %s: %d/%d", mon.MonsterName, cur, req), hudWidth, 1)
+        end
+        line = line + 1
+    end
+
+    -- Dibujar Ítems
+    if itemReqList then
+        for idx, it in ipairs(itemReqList) do
+            local cur = (QuestSystem.HUD_Data.Items and QuestSystem.HUD_Data.Items[idx]) or 0
+            local req = it.Quantity or 0
+            local name = it.ItemName or (GetNameByIndex and GetNameByIndex(it.ItemIndex)) or "Item"
+
+            if canCollect or cur >= req then
+                SetTextColor(0, 200, 255, 255) -- Azul/Cyan para ítems cumplidos
+                RenderText3(startX, startY + (line * 13), string.format("* %s ✔️", name), hudWidth, 1)
+            else
+                SetTextColor(200, 200, 200, 255) -- Gris para ítems faltantes
+                RenderText3(startX, startY + (line * 13), string.format("* %s: %d/%d", name, cur, req), hudWidth, 1)
+            end
+            line = line + 1
+        end
+    end
+
+    DisableAlphaBlend()
+end
+
+function QuestSystem.IsMouseOver()
+    if QuestSystemVisible ~= 1 then return false end
+    
+    local x, y = QuestSystem.GetCenterPos()
+    local MouseX, MouseY = MousePosX(), MousePosY()
+    local WinW, WinH = 250, 270 -- Tus medidas actuales
+    
+    -- Retorna true si el mouse está dentro del cuadrado de la ventana
+    return MouseX >= x and MouseX <= x + WinW and MouseY >= y and MouseY <= y + WinH
+end
+
+function QuestSystem.Init()
+    if QUEST_SYSTEM_SWITCH ~= 1 then return end
+
+    -- [1] Protocolo primero
+    InterfaceController.ClientProtocol(QuestSystem.Protocol)
+    
+    -- [2] EL MOUSE PRIMERO (Fundamental para bloquear movimiento)
+    InterfaceController.UpdateMouse(QuestSystem.UpdateMouse)
+    
+    -- [3] Las demás actualizaciones
+    InterfaceController.UpdateKey(QuestSystem.UpdateKeyEvent)
+    InterfaceController.UpdateProc(QuestSystem.UpdateProc)
+    
+    -- [4] El dibujo al final
+	InterfaceController.MainProc(QuestSystem.RenderMonsterHUD)
+    InterfaceController.MainProc(QuestSystem.Render)
+end
+
+QuestSystem.Init()
+
+return QuestSystem
