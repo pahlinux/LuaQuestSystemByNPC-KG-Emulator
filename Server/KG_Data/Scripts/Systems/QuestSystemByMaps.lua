@@ -1571,7 +1571,7 @@ function QuestSystem.CheckDatabase()
                 [CanCollect] [tinyint] DEFAULT 0,
                 [Status] [int] DEFAULT 1,
                 [MapNumber] [int] DEFAULT 0,
-                [CompletedDate] [datetime] DEFAULT GETDATE()
+                [CompletedDate] [date] DEFAULT GETDATE()
             ) ON [PRIMARY];
             PRINT 'Tabla QUEST_SYSTEM_ACTIVE creada.';
         END
