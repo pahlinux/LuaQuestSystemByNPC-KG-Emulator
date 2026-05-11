@@ -16,3 +16,5 @@ Se Actualizaron Nombres de Funciones y Variables
 Se quito el Instalador por q daba problemas en el SQL
 
 Se agrego la query para instalacion manual.
+
+Se agrego item para requisitos de quest.
