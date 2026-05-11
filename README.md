@@ -18,3 +18,5 @@ Se quito el Instalador por q daba problemas en el SQL
 Se agrego la query para instalacion manual.
 
 Se agrego item para requisitos de quest.
+
+Se agrego Drop de item especificos para las quest (solo se Configura en el Config del server, no es necesario en el cliente)
