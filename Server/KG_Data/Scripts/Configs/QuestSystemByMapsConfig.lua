@@ -170,7 +170,7 @@ QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_DUN ] = {
     { MonsterIndex = 14, Quantity = 10, MonsterName = 'Skeleton' },
 }
 QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[ KEY_DUN ] = {
-    { ItemIndex = GET_ITEM(14, 180), Level = -1, Luck = -1, Skill = -1, Quantity = 5 },
+    { ItemIndex = GET_ITEM(14, 181), Level = -1, Luck = -1, Skill = -1, Quantity = 5 },
 }
 QUEST_SYSTEM_MAPS_REWARD_COINS[ KEY_DUN ] = {
     { CoinName = 'Ruud', CoinAmount = 150, CoinIdentification = 4 },
@@ -238,6 +238,16 @@ QUEST_SYSTEM_MAPS_REWARD_EXP[ KEY_KT ] = {
 ----------------
 ---FIN Config---
 ----------------
+
+---------------------------------------------------------
+-- CONFIGURACIÓN DE DROPS PARA MISIONES
+---------------------------------------------------------
+-- [MonsterIndex] = { s = Seccion, i = Index, lvl = Nivel, rate = %, qid = ID_Quest }
+QUEST_SYSTEM_MAPS_DROP = {
+    -- Ejemplo: Skeleton (14) suelta item 14 181 (rate 50%) para Quest 200
+    [14]  = { s = 14, i = 181, lvl = 0, rate = 50, qid = 200 }, 
+  
+}
 
 --Estos menjajes no tocarlos en el cliente son distintos.
 QUEST_SYSTEM_MAPS_MESSAGES = {}
