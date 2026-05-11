@@ -1,4 +1,4 @@
--- QuestSystem.lua (limpio y ordenado)
+-- QuestSystemByMaps.lua (limpio y ordenado)
 -- Soporte multi-quest por cuenta (tabla dbo.QUEST_SYSTEM_ACTIVE)
 
 -- fallbacks / helpers globales
@@ -13,16 +13,16 @@ if QKey == nil then
 end
 
 -- Namespace / estado
-QuestSystem = QuestSystem or {}
-QuestSystem.PlayerActive = QuestSystem.PlayerActive or {} -- cache
-QuestSystem.CompletedHistory = QuestSystem.CompletedHistory or {}
-QuestSystem.CompletedToday = QuestSystem.CompletedToday or {}
-QuestSystem.LoadingAccounts = QuestSystem.LoadingAccounts or {}
-QuestSystem.IsDataLoaded = QuestSystem.IsDataLoaded or {}
+QuestSystemByMaps = QuestSystemByMaps or {}
+QuestSystemByMaps.PlayerActive = QuestSystemByMaps.PlayerActive or {} -- cache
+QuestSystemByMaps.CompletedHistory = QuestSystemByMaps.CompletedHistory or {}
+QuestSystemByMaps.CompletedToday = QuestSystemByMaps.CompletedToday or {}
+QuestSystemByMaps.LoadingAccounts = QuestSystemByMaps.LoadingAccounts or {}
+QuestSystemByMaps.IsDataLoaded = QuestSystemByMaps.IsDataLoaded or {}
 
 -- pending buffers: flags y contadores acumulados mientras no exista la fila DB
-QuestSystem.PendingInserts = QuestSystem.PendingInserts or {}
-QuestSystem.PendingCounters = QuestSystem.PendingCounters or {}
+QuestSystemByMaps.PendingInserts = QuestSystemByMaps.PendingInserts or {}
+QuestSystemByMaps.PendingCounters = QuestSystemByMaps.PendingCounters or {}
 
 local function Split(s, delimiter)
     local result = {}
@@ -32,13 +32,13 @@ local function Split(s, delimiter)
     return result
 end
 
-function QuestSystem.SendLoadingPacket(player, npc_id)
+function QuestSystemByMaps.SendLoadingPacket(player, npc_id)
     if not player then return end
     local name = player:getName()
-    local packetName = string.format("%s_%s", QUEST_SYSTEM_PACKET_OPEN_NAME, name)
+    local packetName = string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_OPEN_NAME, name)
     local function SD(v) return tonumber(v) or 0 end
 
-    CreatePacket(packetName, QUEST_SYSTEM_PACKET)
+    CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
     SetDwordPacket(packetName, SD(npc_id))
     SetDwordPacket(packetName, SD(player:getMapNumber()))
     SetDwordPacket(packetName, 0xFFFFFFFF) -- Enviamos un ID especial (-1) como señal de carga
@@ -54,7 +54,7 @@ function QuestSystem.SendLoadingPacket(player, npc_id)
     LogAddC(2, string.format("[QS] Signal LOADING enviado a %s", name))
 end
 
-function QuestSystem.SafeCreateAsync(name, sql, aIndex, flag)
+function QuestSystemByMaps.SafeCreateAsync(name, sql, aIndex, flag)
     -- Usamos nombres de consulta fijos y cortos.
     -- flag 1 para lecturas, flag 0 para grabaciones (fire and forget).
     local ok = pcall(CreateAsyncQuery, name, sql, aIndex or -1, flag or 0)
@@ -67,15 +67,15 @@ function QuestSystem.SafeCreateAsync(name, sql, aIndex, flag)
 end
 
 -- Helper: dump
-function QuestSystem.DumpPlayerActiveForAcc(acc)
-    if not acc or not QuestSystem.PlayerActive then
-        LogAddC(2, "QuestSystem.Dump: PlayerActive nil or acc nil")
+function QuestSystemByMaps.DumpPlayerActiveForAcc(acc)
+    if not acc or not QuestSystemByMaps.PlayerActive then
+        LogAddC(2, "QuestSystemByMaps.Dump: PlayerActive nil or acc nil")
         return
     end
     
-    local t = QuestSystem.PlayerActive[acc]
+    local t = QuestSystemByMaps.PlayerActive[acc]
     if not t then
-        LogAddC(2, string.format("QuestSystem.Dump: No hay datos activos para la cuenta: [%s]", tostring(acc)))
+        LogAddC(2, string.format("QuestSystemByMaps.Dump: No hay datos activos para la cuenta: [%s]", tostring(acc)))
         return
     end
     
@@ -98,7 +98,7 @@ function QuestSystem.DumpPlayerActiveForAcc(acc)
 end
 
 -- Helper: GetQuestIdentification
-function QuestSystem.GetQuestIdentification(npc_id, id)
+function QuestSystemByMaps.GetQuestIdentification(npc_id, id)
     -- Validación básica de entrada
     if not id or id == 0 then return nil end
 
@@ -131,46 +131,46 @@ function QuestSystem.GetQuestIdentification(npc_id, id)
     return nil
 end
 
-function QuestSystem.OnPlayerMove(aIndex)
+function QuestSystemByMaps.OnPlayerMove(aIndex)
     local player = User.new(aIndex)
     if not player then return end
     local acc = player:getAccountID()
 
-    -- [SEGURIDAD] No borramos QuestSystem.PlayerActive ni CompletedToday
+    -- [SEGURIDAD] No borramos QuestSystemByMaps.PlayerActive ni CompletedToday
     -- Solo reseteamos el estado de "Ventana Abierta" para que el sistema 
     -- se vea obligado a consultar el nuevo mapa al hablar con un NPC.
-    player:setCacheInt("QuestSystemNPC", 0)
+    player:setCacheInt("QuestSystemByMapsNPC", 0)
     
     -- Si el jugador tiene una misión activa (Status 1), la restauramos al cambiar de mapa
     -- para que el HUD siga funcionando correctamente en la nueva zona.
-    QuestSystem.RestorePlayerCacheFromMemory(player)
+    QuestSystemByMaps.RestorePlayerCacheFromMemory(player)
 end
 
 -- Helper: restore cache from in-memory PlayerActive
-function QuestSystem.RestorePlayerCacheFromMemory(player)
+function QuestSystemByMaps.RestorePlayerCacheFromMemory(player)
     if not player then return end
     local acc = player:getAccountID()
-    if not acc or not QuestSystem.PlayerActive[acc] then return end
+    if not acc or not QuestSystemByMaps.PlayerActive[acc] then return end
     
-    for npc_id, quests in pairs(QuestSystem.PlayerActive[acc]) do
+    for npc_id, quests in pairs(QuestSystemByMaps.PlayerActive[acc]) do
         for qk, qv in pairs(quests) do
             if tonumber(qv.Status) == 1 then
-                player:setCacheInt("QuestSystemNPC", tonumber(npc_id))
-                player:setCacheInt("QuestSystemIdentification", tonumber(qk))
-                player:setCacheInt("QuestSystemKills", tonumber(qv.Kills) or 0)
-                player:setCacheInt("QuestSystemStatus", 1)
-                player:setCacheInt("QuestSystemCanCollect", tonumber(qv.CanCollect) or 0)
-                player:setCacheInt("QuestSystemFinished", 0)
+                player:setCacheInt("QuestSystemByMapsNPC", tonumber(npc_id))
+                player:setCacheInt("QuestSystemByMapsIdentification", tonumber(qk))
+                player:setCacheInt("QuestSystemByMapsKills", tonumber(qv.Kills) or 0)
+                player:setCacheInt("QuestSystemByMapsStatus", 1)
+                player:setCacheInt("QuestSystemByMapsCanCollect", tonumber(qv.CanCollect) or 0)
+                player:setCacheInt("QuestSystemByMapsFinished", 0)
                 
                 -- Sincronizar monstruos individuales
                 if qv.KillsMonster then
                     for i = 1, 9 do
-                        player:setCacheInt("QuestSystemKillsMonster"..i, tonumber(qv.KillsMonster[i]) or 0)
+                        player:setCacheInt("QuestSystemByMapsKillsMonster"..i, tonumber(qv.KillsMonster[i]) or 0)
                     end
                 end
 
                 -- Flag Started: si ya puede cobrar es 0, si está matando es 1
-                player:setCacheInt("QuestSystemStarted", (tonumber(qv.CanCollect) == 1) and 0 or 1)
+                player:setCacheInt("QuestSystemByMapsStarted", (tonumber(qv.CanCollect) == 1) and 0 or 1)
                 
                 LogAddC(2, string.format("[QS-CACHE] RAM -> C++: %s (QID:%d Kills:%d)", acc, tonumber(qk), tonumber(qv.Kills)))
                 return 
@@ -180,7 +180,7 @@ function QuestSystem.RestorePlayerCacheFromMemory(player)
 end
 
 -- DB helper: InsertPlayer (marca pending y ejecuta insert preferente por DataBaseAsync.Query/CreateQuery o async)
-function QuestSystem.InsertPlayer(account, name, npc_id, questIdentification, playerIndex, mapId)
+function QuestSystemByMaps.InsertPlayer(account, name, npc_id, questIdentification, playerIndex, mapId)
     if not account or not questIdentification then return end
     
     -- Lógica de "Si existe actualiza, si no inserta"
@@ -197,22 +197,22 @@ function QuestSystem.InsertPlayer(account, name, npc_id, questIdentification, pl
         account, name or '', npc_id, questIdentification, mapId
     )
 
-    QuestSystem.SafeCreateAsync('QS_Upsert', query, playerIndex, 0)
+    QuestSystemByMaps.SafeCreateAsync('QS_Upsert', query, playerIndex, 0)
     
     -- RAM Sync inmediata para que el HUD responda YA
-    QuestSystem.PlayerActive[account] = QuestSystem.PlayerActive[account] or {}
-    QuestSystem.PlayerActive[account][npc_id] = QuestSystem.PlayerActive[account][npc_id] or {}
-    QuestSystem.PlayerActive[account][npc_id][tostring(questIdentification)] = { 
+    QuestSystemByMaps.PlayerActive[account] = QuestSystemByMaps.PlayerActive[account] or {}
+    QuestSystemByMaps.PlayerActive[account][npc_id] = QuestSystemByMaps.PlayerActive[account][npc_id] or {}
+    QuestSystemByMaps.PlayerActive[account][npc_id][tostring(questIdentification)] = { 
         Finished = 0, Kills = 0, KillsMonster = {0,0,0,0,0,0,0,0,0}, 
         CanCollect = 0, MapNumber = mapId, Status = 1 
     }
 end
 
 -- Flush pending counters for an account/npc/qid (aplica INSERT si necesario y acumula increments)
-function QuestSystem.FlushPending(account, npc_id, questIdentification, map_id, aIndex)
+function QuestSystemByMaps.FlushPending(account, npc_id, questIdentification, map_id, aIndex)
     if not account or not npc_id or not questIdentification then return end
     local acc, qk = tostring(account), tostring(questIdentification)
-    local ram = QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npc_id] and QuestSystem.PlayerActive[acc][npc_id][qk]
+    local ram = QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] and QuestSystemByMaps.PlayerActive[acc][npc_id][qk]
 
     if ram then
         local query = string.format(
@@ -223,16 +223,16 @@ function QuestSystem.FlushPending(account, npc_id, questIdentification, map_id, 
             acc, npc_id, tonumber(qk)
         )
 
-        QuestSystem.SafeCreateAsync('QS_Update', query, aIndex, 0)
+        QuestSystemByMaps.SafeCreateAsync('QS_Update', query, aIndex, 0)
     end
 end
 
 -- QueryAsyncProcess: manejo de callbacks (GetActiveQuests, Insert completions, QuestInc/QuestCan)
-function QuestSystem.QueryAsyncProcess(queryName, identification, aIndex)
+function QuestSystemByMaps.QueryAsyncProcess(queryName, identification, aIndex)
     if not queryName then return 0 end
     
     -- Log de auditoría para verificar respuesta del motor asíncrono
-    LogAddC(2, string.format("QuestSystem.QueryAsyncProcess: CALLBACK RECEIVED name=%s id=%s", tostring(queryName), tostring(identification)))
+    LogAddC(2, string.format("QuestSystemByMaps.QueryAsyncProcess: CALLBACK RECEIVED name=%s id=%s", tostring(queryName), tostring(identification)))
 
     -- Extraemos el nombre de la cuenta del nombre de la query por seguridad
     local acc_from_name = string.sub(queryName, 7) 
@@ -252,8 +252,8 @@ function QuestSystem.QueryAsyncProcess(queryName, identification, aIndex)
         end
 
         if db_acc ~= "" then
-            QuestSystem.IsDataLoaded[db_acc] = true
-            if QuestSystem.LoadingAccounts then QuestSystem.LoadingAccounts[db_acc] = nil end
+            QuestSystemByMaps.IsDataLoaded[db_acc] = true
+            if QuestSystemByMaps.LoadingAccounts then QuestSystemByMaps.LoadingAccounts[db_acc] = nil end
 
             -- [A] PROCESAMIENTO DE MISIÓN ACTIVA (GeACT)
             if string.sub(queryName, 1, 5) == "GeACT" then
@@ -268,26 +268,26 @@ function QuestSystem.QueryAsyncProcess(queryName, identification, aIndex)
                     
                     LogAddC(2, string.format("[QS-LOAD] %s: Misión ACTIVA recuperada QID:%d", db_acc, qid))
                     
-                    QuestSystem.PlayerActive[db_acc] = QuestSystem.PlayerActive[db_acc] or {}
-                    QuestSystem.PlayerActive[db_acc][npc] = QuestSystem.PlayerActive[db_acc][npc] or {}
+                    QuestSystemByMaps.PlayerActive[db_acc] = QuestSystemByMaps.PlayerActive[db_acc] or {}
+                    QuestSystemByMaps.PlayerActive[db_acc][npc] = QuestSystemByMaps.PlayerActive[db_acc][npc] or {}
                     
                     local km = {}
                     for i = 1, 9 do 
                         km[i] = tonumber(QueryAsyncGetValue(identification, 'KillsMonster'..i)) or 0 
                     end
 
-                    QuestSystem.PlayerActive[db_acc][npc][tostring(qid)] = {
+                    QuestSystemByMaps.PlayerActive[db_acc][npc][tostring(qid)] = {
                         Status = 1, MapNumber = mid, Finished = 0,
                         Kills = k0, CanCollect = can, KillsMonster = km
                     }
                     
                     -- Re-hidratación C++ (HUD)
                     if player then 
-                        QuestSystem.RestorePlayerCacheFromMemory(player) 
+                        QuestSystemByMaps.RestorePlayerCacheFromMemory(player) 
                         Timer.TimeOut(3.0, function()
                             local p_check = User.new(aIndex)
                             if p_check and p_check:getConnected() >= 3 then
-                                QuestSystem.SendHUDUpdate(p_check, npc)
+                                QuestSystemByMaps.SendHUDUpdate(p_check, npc)
                             end
                         end)
                     end
@@ -298,8 +298,8 @@ function QuestSystem.QueryAsyncProcess(queryName, identification, aIndex)
                 local packData = tostring(QueryAsyncGetValue(identification, 'Pack') or "")
                 
                 -- Inicialización de mochilas
-                QuestSystem.CompletedHistory[db_acc] = QuestSystem.CompletedHistory[db_acc] or {}
-                QuestSystem.CompletedToday[db_acc] = QuestSystem.CompletedToday[db_acc] or {}
+                QuestSystemByMaps.CompletedHistory[db_acc] = QuestSystemByMaps.CompletedHistory[db_acc] or {}
+                QuestSystemByMaps.CompletedToday[db_acc] = QuestSystemByMaps.CompletedToday[db_acc] or {}
 
                 if packData ~= "" and packData ~= "nil" then
                     local today = os.date("%Y-%m-%d")
@@ -313,15 +313,15 @@ function QuestSystem.QueryAsyncProcess(queryName, identification, aIndex)
 
                         if qid_p and npc_p and mid_p then
                             -- REPARACIÓN CRÍTICA: Guardamos como tabla para evitar el error de "boolean value"
-                            QuestSystem.CompletedHistory[db_acc][qid_p] = { 
+                            QuestSystemByMaps.CompletedHistory[db_acc][qid_p] = { 
                                 isToday = (diff == 0) 
                             }
 
                             -- Si se hizo hoy (diff 0), lo guardamos en CONTROL DIARIO (Para IsOneTime=0)
                             if diff == 0 then
-                                QuestSystem.CompletedToday[db_acc][npc_p] = QuestSystem.CompletedToday[db_acc][npc_p] or {}
-                                QuestSystem.CompletedToday[db_acc][npc_p][mid_p] = QuestSystem.CompletedToday[db_acc][npc_p][mid_p] or {}
-                                QuestSystem.CompletedToday[db_acc][npc_p][mid_p][qid_p] = today
+                                QuestSystemByMaps.CompletedToday[db_acc][npc_p] = QuestSystemByMaps.CompletedToday[db_acc][npc_p] or {}
+                                QuestSystemByMaps.CompletedToday[db_acc][npc_p][mid_p] = QuestSystemByMaps.CompletedToday[db_acc][npc_p][mid_p] or {}
+                                QuestSystemByMaps.CompletedToday[db_acc][npc_p][mid_p][qid_p] = today
                                 LogAddC(2, string.format("[QS-LOAD] %s: Terminada HOY QID:%s", db_acc, qid_p))
                             else
                                 LogAddC(2, string.format("[QS-LOAD] %s: Historial antiguo QID:%s (Días: %d)", db_acc, qid_p, diff))
@@ -366,7 +366,7 @@ function QuestSystem.QueryAsyncProcess(queryName, identification, aIndex)
 end
 
 -- OpenQuest: send npc_id, player state, started flag, quest list and per-quest player state
-function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuestsList)
+function QuestSystemByMaps.BuildQuestPacket(player, npc_id, packetName, providedQuestsList)
     if not player then return end
 
     -- Función SD para manejar Números y Booleanos (true -> 1, false -> 0)
@@ -376,7 +376,7 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
         return tonumber(v) or 0 
     end
 
-    packetName = packetName or string.format("%s_%s", QUEST_SYSTEM_PACKET_OPEN_NAME, player:getName())
+    packetName = packetName or string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_OPEN_NAME, player:getName())
     local isHUDUpdate = (packetName:find("HUDUpdate")) and true or false
     local acc = player:getAccountID()
     local today = os.date("%Y-%m-%d")
@@ -388,48 +388,83 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
 
     -- Sincronizar NPC en Cache
     if npc_id ~= nil then 
-        player:setCacheInt("QuestSystemNPC", npcKey) 
+        player:setCacheInt("QuestSystemByMapsNPC", npcKey) 
     else 
-        npcKey = player:getCacheInt("QuestSystemNPC") or 0 
+        npcKey = player:getCacheInt("QuestSystemByMapsNPC") or 0 
     end
 
     local qid_active = 0
     local finished_to_send = 0
     local can_collect_to_send = 0
     local kills_monster = {0,0,0,0,0,0,0,0,0}
-    local items_to_send = {0,0,0,0,0,0,0,0,0,0} -- [AGREGADO] Para que el HUD reciba items
-    local isRemoteQuest = false
+    local items_to_send = {0,0,0,0,0,0,0,0,0,0} 
+    
+    local allItemsDone = true
 
     -- [A] BUSCAR MISIÓN ACTIVA (Filtrado por Mapa)
-    if QuestSystem.PlayerActive[acc] then
-        for n_id, npcs in pairs(QuestSystem.PlayerActive[acc]) do
+    if QuestSystemByMaps.PlayerActive[acc] then
+        for n_id, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
             for q_id, q_v in pairs(npcs) do
                 -- Solo procesamos si no está marcada como finalizada (Status 1)
                 if SD(q_v.Finished) == 0 then
                     local check_qid = SD(q_id)
                     local quest_map_owner = SD(q_v.MapNumber)
 
-                    -- [AGREGADO] Si es HUD, forzamos la llave del NPC para que el cliente la encuentre
+                    -- Si es HUD, forzamos la llave del NPC para que el cliente la encuentre
                     if isHUDUpdate then npcKey = SD(n_id) end
 
                     -- Validamos si la misión activa es del mapa actual
                     if quest_map_owner == mapKey then
                         qid_active = check_qid
                         can_collect_to_send = SD(q_v.CanCollect)
-                        isRemoteQuest = false
                         
-                        -- Cargamos kills y items solo si es la misión local
+                        -- 1. Cargamos Kills de Monstruos
                         if q_v.KillsMonster then
                             for i = 1, 9 do kills_monster[i] = SD(q_v.KillsMonster[i]) end
                         end
-                        if q_v.ItemsCount then
-                            for i = 1, 10 do items_to_send[i] = SD(q_v.ItemsCount[i]) end
+
+                        -- 2. CONTEO DE ITEMS EN TIEMPO REAL (Escaneo de Mochila)
+                        local itemReq = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[string.format("%d_%d_%d", n_id, mapKey, qid_active)] 
+                                        or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid_active]
+                        
+                        if itemReq then
+                            local pInv = Inventory.new(player:getIndex())
+                            for idx, req in ipairs(itemReq) do
+                                if idx > 10 then break end
+                                local currentCount = 0
+                                for i = 12, 203 do -- Slots del inventario
+                                    if pInv:isItem(i) ~= 0 and pInv:getIndex(i) == req.ItemIndex then
+                                        -- Validar Level, Skill y Luck (Compatibilidad Base)
+                                        local lvOk = (req.Level == -1 or pInv:getLevel(i) == req.Level)
+                                        local skOk = (req.Skill == -1 or pInv:getItemTable(i, 2) == (req.Skill or 0))
+                                        local lkOk = (req.Luck == -1 or pInv:getItemTable(i, 3) == (req.Luck or 0))
+                                        
+                                        if lvOk and skOk and lkOk then
+                                            if GetStackItem(pInv:getIndex(i)) <= 0 then
+                                                currentCount = currentCount + 1
+                                            else
+                                                currentCount = currentCount + (pInv:getDurability(i) > 0 and pInv:getDurability(i) or 1)
+                                            end
+                                        end
+                                    end
+                                end
+                                items_to_send[idx] = currentCount
+                                -- Si falta un solo ítem de la lista, marcamos como incompleto
+                                if currentCount < (req.Quantity or 1) then allItemsDone = false end
+                            end
                         end
+
+                        -- 3. VALIDACIÓN CRUZADA (Monstruos + Ítems)
+                        -- Si el servidor dice que puede cobrar (porque mató los bichos) pero NO tiene los ítems
+                        -- forzamos can_collect_to_send a 0 para que el HUD no muestre el Check verde erróneo.
+                        if can_collect_to_send == 1 and not allItemsDone then
+                            can_collect_to_send = 0
+                        end
+
                     else
                         -- Si tiene una misión en OTRO mapa, la marcamos como Remota
                         qid_active = check_qid
                         can_collect_to_send = 2 -- Flag de "Remoto"
-                        isRemoteQuest = true
                     end
                     break
                 end
@@ -438,15 +473,13 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
         end
     end
 
-    -- [B] DETERMINAR SI MOSTRAR CARTEL "COMPLETED" (Finished)
+    -- [B] DETERMINAR SI MOSTRAR CARTEL "COMPLETED" (Finished Today)
     local questsList = providedQuestsList or {}
-
     if qid_active == 0 and #questsList == 0 and not isHUDUpdate then
-        if QuestSystem.CompletedToday[acc] and QuestSystem.CompletedToday[acc][npcKey] then
-            if QuestSystem.CompletedToday[acc][npcKey][mapKey] then
-                for qid_done, date_done in pairs(QuestSystem.CompletedToday[acc][npcKey][mapKey]) do
+        if QuestSystemByMaps.CompletedToday[acc] and QuestSystemByMaps.CompletedToday[acc][npcKey] then
+            if QuestSystemByMaps.CompletedToday[acc][npcKey][mapKey] then
+                for qid_done, date_done in pairs(QuestSystemByMaps.CompletedToday[acc][npcKey][mapKey]) do
                     if date_done == today then
-                        -- Activamos flag de finalizado porque ya no hay nada más que hacer aquí hoy
                         finished_to_send = 1
                         qid_active = SD(qid_done)
                         break
@@ -457,12 +490,12 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
     end
 
     -- [C] ENVÍO DE PAQUETE (HEADER Y STATS)
-    CreatePacket(packetName, QUEST_SYSTEM_PACKET)
+    CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
     SetDwordPacket(packetName, npcKey)
     SetDwordPacket(packetName, mapKey)
     SetDwordPacket(packetName, SD(qid_active))
 
-    -- Stats (9 Dwords iniciales + 1 de Control)
+    -- Stats (9 Dwords)
     SetDwordPacket(packetName, SD(player:getLevel()))
     SetDwordPacket(packetName, SD(player:getReset()))
     SetDwordPacket(packetName, SD(player:getMasterReset()))
@@ -470,13 +503,10 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
     SetDwordPacket(packetName, SD(player:getCoin1()))
     SetDwordPacket(packetName, SD(player:getCoin2()))
     SetDwordPacket(packetName, SD(player:getCoin3()))
-
-    -- [FIX RUUD] Validación de seguridad
+    
     local ruud = 0
-    if acc ~= nil and acc ~= "" then
-        if DataBase and DataBase.GetValue then 
-            ruud = DataBase.GetValue('CashShopData', 'Ruud', 'AccountID', acc) or 0 
-        end
+    if acc ~= "" and DataBase and DataBase.GetValue then 
+        ruud = DataBase.GetValue('CashShopData', 'Ruud', 'AccountID', acc) or 0 
     end
     SetDwordPacket(packetName, SD(ruud))
     SetDwordPacket(packetName, SD(player:getVip()))
@@ -485,10 +515,8 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
     SetDwordPacket(packetName, SD(can_collect_to_send))
 
     -- Flags y Arrays
-    SetBytePacket(packetName, SD(finished_to_send))
+    SetBytePacket(packetName, SD(finished_to_send)) 
     for i = 1, 9 do SetDwordPacket(packetName, SD(kills_monster[i])) end
-    
-    -- [AGREGADO] Enviamos items_to_send en lugar de 0s fijos
     for i = 1, 10 do SetDwordPacket(packetName, SD(items_to_send[i])) end
 
     -- [D] LISTA DE MISIONES
@@ -500,34 +528,28 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
             local q = questsList[i]
             local qid_l = SD(q.QuestIdentification)
             local f, c = 0, 0
-            local list_kills = {0,0,0,0,0,0,0,0,0} -- [AGREGADO]
+            local list_kills = {0,0,0,0,0,0,0,0,0}
             
-            -- 1. Verificamos si esta misión de la lista está ACTIVA en RAM
-            if QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npcKey] and QuestSystem.PlayerActive[acc][npcKey][tostring(qid_l)] then
-                local st = QuestSystem.PlayerActive[acc][npcKey][tostring(qid_l)]
+            -- Verificamos si esta misión de la lista está ACTIVA en RAM
+            if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npcKey] and QuestSystemByMaps.PlayerActive[acc][npcKey][tostring(qid_l)] then
+                local st = QuestSystemByMaps.PlayerActive[acc][npcKey][tostring(qid_l)]
                 f, c = SD(st.Finished), SD(st.CanCollect)
-                
-                -- [AGREGADO] Rescatamos los kills si está activa
                 if st.KillsMonster then
                     for j = 1, 9 do list_kills[j] = SD(st.KillsMonster[j]) end
                 end
             end
 
-            -- 2. Verificamos si ya se TERMINÓ hoy en este mapa
-            if f == 0 and QuestSystem.CompletedToday[acc] and QuestSystem.CompletedToday[acc][npcKey] and QuestSystem.CompletedToday[acc][npcKey][mapKey] then
-                if QuestSystem.CompletedToday[acc][npcKey][mapKey][tostring(qid_l)] == today then
-                    local config = QuestSystem.GetQuestIdentification(qid_l)
-                    if config and config.IsOneTime == 0 then
-                        f = 1 
-                    end
+            -- Verificamos si ya se TERMINÓ hoy en este mapa
+            if f == 0 and QuestSystemByMaps.CompletedToday[acc] and QuestSystemByMaps.CompletedToday[acc][npcKey] and QuestSystemByMaps.CompletedToday[acc][npcKey][mapKey] then
+                if QuestSystemByMaps.CompletedToday[acc][npcKey][mapKey][tostring(qid_l)] == today then
+                    local config = QuestSystemByMaps.GetQuestIdentification(qid_l)
+                    if config and config.IsOneTime == 0 then f = 1 end
                 end
             end
 
             SetDwordPacket(packetName, qid_l)
             SetDwordPacket(packetName, f)
             SetDwordPacket(packetName, c)
-            
-            -- [AGREGADO] Enviamos los kills guardados en list_kills en lugar de 0s
             for j = 1, 9 do SetDwordPacket(packetName, list_kills[j]) end 
         end
     end
@@ -537,19 +559,19 @@ function QuestSystem.BuildQuestPacket(player, npc_id, packetName, providedQuests
 end
 
 -- 1. FUNCIÓN PARA EL NPC (Abre la ventana)
-function QuestSystem.OpenQuest(player, npc_id)
+function QuestSystemByMaps.OpenQuest(player, npc_id)
     if not player then return end
     local acc = player:getAccountID()
     local map_id = player:getMapNumber()
-    player:setCacheInt("QuestSystemNPC", npc_id)
+    player:setCacheInt("QuestSystemByMapsNPC", npc_id)
 
-    if QuestSystem.IsDataLoaded[acc] == false then return end
+    if QuestSystemByMaps.IsDataLoaded[acc] == false then return end
 
     local fullList = {}
     if QUEST_SYSTEM_BY_MAP and QUEST_SYSTEM_BY_MAP[map_id] then
         fullList = QUEST_SYSTEM_BY_MAP[map_id]
-    elseif QUEST_SYSTEM_INFO_BY_NPC and QUEST_SYSTEM_INFO_BY_NPC[npc_id] then
-        fullList = QUEST_SYSTEM_INFO_BY_NPC[npc_id]
+    elseif QUEST_SYSTEM_MAPS_INFO_BY_NPC and QUEST_SYSTEM_MAPS_INFO_BY_NPC[npc_id] then
+        fullList = QUEST_SYSTEM_MAPS_INFO_BY_NPC[npc_id]
     end
 
     local filteredList = {}
@@ -561,10 +583,10 @@ function QuestSystem.OpenQuest(player, npc_id)
         local isOneTime = (config.IsOneTime == 1)
         
         -- 1. Estado en RAM (Activa)
-        local isActive = (QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npc_id] and QuestSystem.PlayerActive[acc][npc_id][qid]) ~= nil
+        local isActive = (QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] and QuestSystemByMaps.PlayerActive[acc][npc_id][qid]) ~= nil
         
         -- 2. Estado en Historial (Terminada alguna vez)
-        local history = QuestSystem.CompletedHistory[acc] and QuestSystem.CompletedHistory[acc][qid]
+        local history = QuestSystemByMaps.CompletedHistory[acc] and QuestSystemByMaps.CompletedHistory[acc][qid]
         local isDoneEver = (history ~= nil)
         local isDoneToday = (type(history) == "table" and history.isToday == true)
 
@@ -595,10 +617,10 @@ function QuestSystem.OpenQuest(player, npc_id)
     local finishedFlag = (#filteredList == 0 and not anyActive) and 1 or 0
     
     LogAddC(2, string.format("[QS-DEBUG] %s Map:%d | Misiones Enviadas: %d | Finished: %d", acc, map_id, #filteredList, finishedFlag))
-    QuestSystem.BuildQuestPacket(player, npc_id, nil, filteredList, finishedFlag)
+    QuestSystemByMaps.BuildQuestPacket(player, npc_id, nil, filteredList, finishedFlag)
 end
 
-function QuestSystem.GetQuestIdentification(qid)
+function QuestSystemByMaps.GetQuestIdentification(qid)
     if not qid or qid == 0 then return nil end
     local searchId = tonumber(qid)
 
@@ -614,8 +636,8 @@ function QuestSystem.GetQuestIdentification(qid)
     end
 
     -- Si no está en mapas, buscamos en la tabla global (compatibilidad)
-    if QUEST_SYSTEM_INFO then
-        for _, q in pairs(QUEST_SYSTEM_INFO) do
+    if QUEST_SYSTEM_MAPS_INFO then
+        for _, q in pairs(QUEST_SYSTEM_MAPS_INFO) do
             if tonumber(q.QuestIdentification) == searchId then 
                 return q 
             end
@@ -626,19 +648,19 @@ function QuestSystem.GetQuestIdentification(qid)
 end
 
 -- 2. FUNCIÓN PARA EL HUD (Actualización silenciosa)
-function QuestSystem.SendHUDUpdate(player, npc_id) 
+function QuestSystemByMaps.SendHUDUpdate(player, npc_id) 
 	if not player then return end 
-	local packetName = string.format("QuestSystemHUDUpdate_%s", player:getName()) QuestSystem.BuildQuestPacket(player, npc_id, packetName) 
+	local packetName = string.format("QuestSystemByMapsHUDUpdate_%s", player:getName()) QuestSystemByMaps.BuildQuestPacket(player, npc_id, packetName) 
 end
 
-function QuestSystem.SendOpenContinue(player, npc_id, qid, map_id)
+function QuestSystemByMaps.SendOpenContinue(player, npc_id, qid, map_id)
     -- 1. Validaciones iniciales de objeto y estado
     if type(player) == "number" then player = User.new(player) end
     if not player then return end
     
     local acc = player:getAccountID()
     local name = player:getName()
-    local packetName = string.format("%s_%s", QUEST_SYSTEM_PACKET_OPEN_NAME, name)
+    local packetName = string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_OPEN_NAME, name)
     
     -- Helper para asegurar que siempre enviamos números al paquete
     local function SD(v) return tonumber(v) or 0 end
@@ -652,7 +674,7 @@ function QuestSystem.SendOpenContinue(player, npc_id, qid, map_id)
     end
 
     -- 3. Inicio y construcción del Paquete
-    CreatePacket(packetName, QUEST_SYSTEM_PACKET)
+    CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
     
     -- [HEADER] Sincronización estricta: NPC -> MAPA -> QID
     SetDwordPacket(packetName, SD(npc_id))
@@ -713,18 +735,18 @@ function QuestSystem.SendOpenContinue(player, npc_id, qid, map_id)
     LogAddC(2, string.format("[QS-SEND] Continue enviado a %s: NPC:%d QID:%d MAP:%d", acc, SD(npc_id), SD(qid), mid_to_send))
 end
 
-function QuestSystem.ForceCloseClient(player, npc_id)
+function QuestSystemByMaps.ForceCloseClient(player, npc_id)
     if type(player) == "number" then player = User.new(player) end
     if not player then return end
 
     local name = player:getName()
     local acc = player:getAccountID()
     -- Usamos el paquete de HUD Update para forzar el cierre visual
-    local packetName = string.format("QuestSystemHUDUpdate_%s", name)
+    local packetName = string.format("QuestSystemByMapsHUDUpdate_%s", name)
     
     local function SD(v) return tonumber(v) or 0 end
 
-    CreatePacket(packetName, QUEST_SYSTEM_PACKET)
+    CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
 
     -- 1. HEADER CON VALORES NULOS
     -- Al enviar QuestIdentification = 0 y estadísticas en 0, el cliente no tiene qué dibujar
@@ -760,23 +782,23 @@ function QuestSystem.ForceCloseClient(player, npc_id)
     SetDwordPacket(packetName, 0)
 
     -- ENVÍO Y LOG
-    LogAddC(2, string.format("QuestSystem.ForceCloseClient: [HUD RESET] npc=%d acc=%s", SD(npc_id), acc))
+    LogAddC(2, string.format("QuestSystemByMaps.ForceCloseClient: [HUD RESET] npc=%d acc=%s", SD(npc_id), acc))
     SendPacket(packetName, player:getIndex())
     ClearPacket(packetName)
 end
 
-function QuestSystem.SendHUDContinue(player, npc_id, qid)
+function QuestSystemByMaps.SendHUDContinue(player, npc_id, qid)
     if type(player) == "number" then player = User.new(player) end
     if not player then return end
 
     local acc = player:getAccountID()
     local name = player:getName()
     local mapId = player:getMapNumber() -- Obtenemos mapa actual
-    local packetName = string.format("QuestSystemHUDUpdate_%s", name)
+    local packetName = string.format("QuestSystemByMapsHUDUpdate_%s", name)
     
     local function SD(v) return tonumber(v) or 0 end
 
-    CreatePacket(packetName, QUEST_SYSTEM_PACKET)
+    CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
 
     -- [HEADER] Sincronizado con tu DLL: NPC -> MAP -> QID
     SetDwordPacket(packetName, SD(npc_id))
@@ -816,13 +838,13 @@ function QuestSystem.SendHUDContinue(player, npc_id, qid)
     SetDwordPacket(packetName, 0) -- Kills: 0
     for i = 1, 9 do SetDwordPacket(packetName, 0) end
 
-    LogAddC(2, string.format("QuestSystem.SendHUDContinue: Sincronizado con MapID %d", mapId))
+    LogAddC(2, string.format("QuestSystemByMaps.SendHUDContinue: Sincronizado con MapID %d", mapId))
     SendPacket(packetName, player:getIndex())
     ClearPacket(packetName)
 end
 
 -- StartQuest
-function QuestSystem.StartQuest(player, questID)
+function QuestSystemByMaps.StartQuest(player, questID)
     if not player then return end
     
     local Language = player:getLanguage()
@@ -830,20 +852,20 @@ function QuestSystem.StartQuest(player, questID)
     local acc = player:getAccountID()
     local index = player:getIndex()
     local name = player:getName() 
-    local npc_id = player:getCacheInt("QuestSystemNPC") or 0
+    local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
     local qid = tonumber(questID) or 0
     
     -- 1. VALIDACIONES DE ESTADO
     if qid <= 0 then return end
 
     if player:getState() == 32 or player:getDieRegen() ~= 0 or player:getTeleport() ~= 0 then
-        SendMessage(string.format(QUEST_SYSTEM_MESSAGES[Language][1]), index, 1)
+        SendMessage(string.format(QUEST_SYSTEM_MAPS_MESSAGES[Language][1]), index, 1)
         return
     end
 
     -- [BLOQUEO GLOBAL] Evitar múltiples misiones activas
-    if QuestSystem.PlayerActive[acc] then
-        for n_k, npcs in pairs(QuestSystem.PlayerActive[acc]) do
+    if QuestSystemByMaps.PlayerActive[acc] then
+        for n_k, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
             for q_k, q_v in pairs(npcs) do
                 if tonumber(q_v.Finished or 0) == 0 then
                     SendMessage("Ya tienes una misión activa en otro mapa. Termínala primero.", index, 1)
@@ -853,9 +875,9 @@ function QuestSystem.StartQuest(player, questID)
         end
     end
 
-    local getQuest = QuestSystem.GetQuestIdentification(qid)
+    local getQuest = QuestSystemByMaps.GetQuestIdentification(qid)
     if getQuest == nil then 
-        LogAddC(2, string.format("QuestSystem Error: No se encontro ID %d en Config", qid))
+        LogAddC(2, string.format("QuestSystemByMaps Error: No se encontro ID %d en Config", qid))
         SendMessage(string.format("Error: Quest %d no configurada.", qid), index, 1)
         return 
     end
@@ -905,27 +927,27 @@ function QuestSystem.StartQuest(player, questID)
     -- 2. VERIFICACIÓN DIARIA (RAM)
     ---------------------------------------------------------
     local today = os.date("%Y-%m-%d")
-    if QuestSystem.CompletedToday[acc] and QuestSystem.CompletedToday[acc][npc_id] and QuestSystem.CompletedToday[acc][npc_id][mapId] then
-        if QuestSystem.CompletedToday[acc][npc_id][mapId][tostring(qid)] == today then
+    if QuestSystemByMaps.CompletedToday[acc] and QuestSystemByMaps.CompletedToday[acc][npc_id] and QuestSystemByMaps.CompletedToday[acc][npc_id][mapId] then
+        if QuestSystemByMaps.CompletedToday[acc][npc_id][mapId][tostring(qid)] == today then
             SendMessage("Ya completaste esta misión el día de hoy.", index, 1)
-            QuestSystem.SendOpenContinue(player, npc_id, qid, mapId)
+            QuestSystemByMaps.SendOpenContinue(player, npc_id, qid, mapId)
             return
         end
     end
 
     -- 3. HIDRATACIÓN DE CACHÉ (C++)
-    player:setCacheInt("QuestSystemStarted", 1)
-    player:setCacheInt("QuestSystemStatus", 1)
-    player:setCacheInt("QuestSystemIdentification", qid)
-    player:setCacheInt("QuestSystemNPC", npc_id)
-    player:setCacheInt("QuestSystemCanCollect", 0)
-    player:setCacheInt("QuestSystemFinished", 0)
-    for i = 1, 9 do player:setCacheInt(string.format('QuestSystemKillsMonster%d', i), 0) end
+    player:setCacheInt("QuestSystemByMapsStarted", 1)
+    player:setCacheInt("QuestSystemByMapsStatus", 1)
+    player:setCacheInt("QuestSystemByMapsIdentification", qid)
+    player:setCacheInt("QuestSystemByMapsNPC", npc_id)
+    player:setCacheInt("QuestSystemByMapsCanCollect", 0)
+    player:setCacheInt("QuestSystemByMapsFinished", 0)
+    for i = 1, 9 do player:setCacheInt(string.format('QuestSystemByMapsKillsMonster%d', i), 0) end
 
     -- 4. HIDRATACIÓN DE RAM (LUA)
-    QuestSystem.PlayerActive[acc] = QuestSystem.PlayerActive[acc] or {}
-    QuestSystem.PlayerActive[acc][npc_id] = QuestSystem.PlayerActive[acc][npc_id] or {}
-    QuestSystem.PlayerActive[acc][npc_id][tostring(qid)] = {
+    QuestSystemByMaps.PlayerActive[acc] = QuestSystemByMaps.PlayerActive[acc] or {}
+    QuestSystemByMaps.PlayerActive[acc][npc_id] = QuestSystemByMaps.PlayerActive[acc][npc_id] or {}
+    QuestSystemByMaps.PlayerActive[acc][npc_id][tostring(qid)] = {
         Finished = 0,
         Kills = 0,
         CanCollect = 0,
@@ -936,19 +958,19 @@ function QuestSystem.StartQuest(player, questID)
     }
 
     -- 5. BASE DE DATOS
-    QuestSystem.InsertPlayer(acc, name, npc_id, qid, index, mapId)
+    QuestSystemByMaps.InsertPlayer(acc, name, npc_id, qid, index, mapId)
 
     -- 6. LANZAMIENTO DE HUD Y CIERRE DE INTERFAZ
     player:setInterfaceUse(0)
     player:setInterfaceType(0)
     
-    QuestSystem.RestorePlayerCacheFromMemory(player)
+    QuestSystemByMaps.RestorePlayerCacheFromMemory(player)
     
     Timer.TimeOut(0.5, function()
         local p_check = User.new(index)
         if p_check and p_check:getConnected() >= 3 then
-            QuestSystem.SendHUDUpdate(p_check, npc_id)
-            SendMessage(string.format(QUEST_SYSTEM_MESSAGES[Language][3], getQuest.QuestName or "Quest"), index, 1)
+            QuestSystemByMaps.SendHUDUpdate(p_check, npc_id)
+            SendMessage(string.format(QUEST_SYSTEM_MAPS_MESSAGES[Language][3], getQuest.QuestName or "Quest"), index, 1)
         end
     end)
     
@@ -957,91 +979,88 @@ end
 
 -- CheckQuestProgress
 -- (kept as in your cleaned implementation)
-function QuestSystem.CheckQuestProgress(member, monster)
+function QuestSystemByMaps.CheckQuestProgress(member, monster)
     if not member or not monster then return end
     
-    local currentStatus = member:getCacheInt("QuestSystemStatus") or 0
+    -- Validaciones de estado ByMaps
+    local currentStatus = member:getCacheInt("QuestSystemByMapsStatus") or 0
     if currentStatus ~= 1 then return end 
-    if member:getCacheInt("QuestSystemFinished") == 1 then return end
+    if member:getCacheInt("QuestSystemByMapsFinished") == 1 then return end
     
     local acc = member:getAccountID()
-    local qid = member:getCacheInt("QuestSystemIdentification") or 0
-    local npc_id = member:getCacheInt("QuestSystemNPC") or 0
+    local qid = member:getCacheInt("QuestSystemByMapsIdentification") or 0
+    local npc_id = member:getCacheInt("QuestSystemByMapsNPC") or 0
     local map_id = member:getMapNumber()
 
     if qid == 0 then return end
 
+    -- Acceso a tu tabla RAM original (Asegúrate que el nombre de la tabla sea este)
     local q_s = tostring(qid)
-    local pEntry = QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npc_id] and QuestSystem.PlayerActive[acc][npc_id][q_s]
+    local pEntry = QuestSystemByMaps.PlayerActive and QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] and QuestSystemByMaps.PlayerActive[acc][npc_id][q_s]
     
-    -- Buscamos los requisitos de la misión
     local key = string.format("%d_%d_%d", npc_id, map_id, qid)
-    local memberQuestInfo = QUEST_SYSTEM_REQUIREMENTS_MONSTER[key] or QUEST_SYSTEM_REQUIREMENTS_MONSTER[qid]
+    local memberQuestInfo = QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[qid]
     
     if memberQuestInfo == nil then return end
 
     for count, monsterInfo in ipairs(memberQuestInfo) do
         if count > 9 then break end
         
-        -- Si el monstruo que murió coincide con el de la quest
+        -- Si el monstruo coincide
         if tonumber(monsterInfo.MonsterIndex) == monster:getClass() then
-            local kills = member:getCacheInt(string.format('QuestSystemKillsMonster%d', count)) or 0
+            local kills = member:getCacheInt(string.format('QuestSystemByMapsKillsMonster%d', count)) or 0
             
             if kills < (monsterInfo.Quantity or 0) then
                 local newKills = kills + 1
                 
-                -- 1. Actualizamos Caché del C++ (Para que el juego sepa)
-                member:setCacheInt(string.format('QuestSystemKillsMonster%d', count), newKills)
+                -- 1. Actualizamos Caché del C++ (Lo que lee el HUD)
+                member:setCacheInt(string.format('QuestSystemByMapsKillsMonster%d', count), newKills)
                 
-                -- 2. Actualizamos la RAM Principal
+                -- 2. RECONSTRUCCIÓN: Actualizamos tu RAM (pEntry) como lo tenías antes
                 if pEntry then
                     pEntry.KillsMonster[count] = newKills
                     pEntry.Kills = (pEntry.Kills or 0) + 1
-                    member:setCacheInt("QuestSystemKills", pEntry.Kills)
+                    member:setCacheInt("QuestSystemByMapsKills", pEntry.Kills)
                 end
 
-                -- 3. [BLOQUEO ANTI-PÉRDIDA] 
-                -- Llamamos a FlushPending EN CADA MUERTE. 
-                -- Como ahora usamos el Procedure corto (usp_QuestSystem_SaveProgress), no da lag.
-                QuestSystem.FlushPending(acc, npc_id, qid, map_id, member:getIndex())
+                -- 3. Guardado físico en DB
+                QuestSystemByMaps.FlushPending(acc, npc_id, qid, map_id, member:getIndex())
                 
-				-- 4. Verificamos si completó la misión
-                local allDone = true
+                -- 4. Verificación de "Misión Completa" (Solo para la notificación)
+                local allMonstersDone = true
                 for idx, req in ipairs(memberQuestInfo) do
-                    local cur = member:getCacheInt(string.format('QuestSystemKillsMonster%d', idx)) or 0
-                    if cur < (req.Quantity or 0) then allDone = false; break end
+                    local cur = member:getCacheInt(string.format('QuestSystemByMapsKillsMonster%d', idx)) or 0
+                    if cur < (req.Quantity or 0) then allMonstersDone = false; break end
                 end
                 
-				if allDone then
-                    member:setCacheInt("QuestSystemCanCollect", 1)
-                    if pEntry then pEntry.CanCollect = 1 end
+                -- SI TERMINÓ MONSTRUOS, REVISAMOS ÍTEMS Y NOTIFICAMOS
+                if allMonstersDone then
+                    local alreadyDone = member:getCacheInt("QuestSystemByMapsCanCollect") or 0
+                    if alreadyDone == 0 and QuestSystemByMaps.IsQuestFullyCompleted(member) then
+                        member:setCacheInt("QuestSystemByMapsCanCollect", 1)
+                        if pEntry then pEntry.CanCollect = 1 end
 
-                    -- [1] AVISO AL CLIENTE PARA EL EFECTO VISUAL
-                    -- Usamos 'qid' que es la variable definida al inicio de CheckQuestProgress
-                    local pName = string.format("QuestGoalMet_%s", member:getName())
-                    CreatePacket(pName, QUEST_SYSTEM_PACKET)
-                    
-                    -- CORRECCIÓN AQUÍ: Cambiamos memberQuestID por qid
-                    SetDwordPacket(pName, tonumber(qid) or 0) 
-                    
-                    SendPacket(pName, member:getIndex())
-                    ClearPacket(pName)
-                    
-                    -- Actualizamos estado a "Puede Cobrar" en la DB
-                    local queryCan = string.format(
-                        "UPDATE QUEST_SYSTEM_ACTIVE SET CanCollect = 1 WHERE AccountID='%s' AND NPC=%d AND QuestIdentification=%d AND MapNumber=%d",
-                        acc, npc_id, qid, map_id)
-                    
-                    QuestSystem.SafeCreateAsync('CanQ', queryCan, -1, 0)
-                    
-                    SendMessage("¡Misión Completada! Vuelve con el NPC.", member:getIndex(), 1)
+                        -- Enviar el paquete del Cartel Dorado
+                        local pName = string.format("QuestGoalMet_%s", member:getName())
+                        CreatePacket(pName, QUEST_SYSTEM_MAPS_PACKET)
+                        SetDwordPacket(pName, tonumber(qid) or 0) 
+                        SendPacket(pName, member:getIndex())
+                        ClearPacket(pName)
+                        
+                        -- Update de estado en DB
+                        local queryCan = string.format(
+                            "UPDATE QUEST_SYSTEM_ACTIVE SET CanCollect = 1 WHERE AccountID='%s' AND NPC=%d AND QuestIdentification=%d AND MapNumber=%d",
+                            acc, npc_id, qid, map_id)
+                        QuestSystemByMaps.SafeCreateAsync('CanQ', queryCan, -1, 0)
+                        
+                        SendMessage("¡Misión Completada! Vuelve con el NPC.", member:getIndex(), 1)
+                    end
                 end
                 
-                -- 5. HUD y Mensaje en pantalla
-                QuestSystem.SendHUDUpdate(member, npc_id)
-                SendMessage(string.format('[Quest System] %s: %d/%d', monsterInfo.MonsterName or "Monster", newKills, monsterInfo.Quantity or 0), member:getIndex(), 1)
+                -- 5. Actualización de HUD y Mensaje (Sigue funcionando igual)
+                QuestSystemByMaps.SendHUDUpdate(member, npc_id)
+                SendMessage(string.format('[Quest] %s: %d/%d', monsterInfo.MonsterName or "Monster", newKills, monsterInfo.Quantity or 0), member:getIndex(), 1)
                 
-                --LogAddC(2, string.format("[QS-KILL] %s mató %d (%d/%d). SQL Actualizado.", acc, monster:getClass(), newKills, monsterInfo.Quantity))
                 break
             end
         end
@@ -1049,28 +1068,28 @@ function QuestSystem.CheckQuestProgress(member, monster)
 end
 
 -- MonsterDie: party-aware wrapper
-function QuestSystem.MonsterDie(PlayerIndex, MonsterIndex)
+function QuestSystemByMaps.MonsterDie(PlayerIndex, MonsterIndex)
     local player = User.new(PlayerIndex)
     local monster = User.new(MonsterIndex) -- Mantenemos User.new por compatibilidad
     if not player or not monster then return end
 
     local acc = player:getAccountID()
-    local qid = player:getCacheInt("QuestSystemIdentification") or 0
+    local qid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
 
     -- Re-hidratación (Por si el jugador cambió de servidor/mapa y el caché está vacío)
-    if qid == 0 and QuestSystem.PlayerActive and QuestSystem.PlayerActive[acc] then
-        for npcId, npcTable in pairs(QuestSystem.PlayerActive[acc]) do
+    if qid == 0 and QuestSystemByMaps.PlayerActive and QuestSystemByMaps.PlayerActive[acc] then
+        for npcId, npcTable in pairs(QuestSystemByMaps.PlayerActive[acc]) do
             for qIdStr, data in pairs(npcTable) do
                 if tonumber(data.Finished or 0) == 0 then
                     qid = tonumber(qIdStr)
-                    player:setCacheInt("QuestSystemIdentification", qid)
-                    player:setCacheInt("QuestSystemNPC", tonumber(npcId))
-                    player:setCacheInt("QuestSystemStarted", 1)
-                    player:setCacheInt("QuestSystemStatus", 1)
+                    player:setCacheInt("QuestSystemByMapsIdentification", qid)
+                    player:setCacheInt("QuestSystemByMapsNPC", tonumber(npcId))
+                    player:setCacheInt("QuestSystemByMapsStarted", 1)
+                    player:setCacheInt("QuestSystemByMapsStatus", 1)
                     
                     if data.KillsMonster then
                         for i=1, 9 do 
-                            player:setCacheInt("QuestSystemKillsMonster"..i, data.KillsMonster[i] or 0) 
+                            player:setCacheInt("QuestSystemByMapsKillsMonster"..i, data.KillsMonster[i] or 0) 
                         end
                     end
                     break
@@ -1090,17 +1109,17 @@ function QuestSystem.MonsterDie(PlayerIndex, MonsterIndex)
             if mIdx ~= -1 then
                 local member = User.new(mIdx)
                 if member and member:getMapNumber() == monster:getMapNumber() then
-                    QuestSystem.CheckQuestProgress(member, monster)
+                    QuestSystemByMaps.CheckQuestProgress(member, monster)
                 end
             end
         end
     else
-        QuestSystem.CheckQuestProgress(player, monster)
+        QuestSystemByMaps.CheckQuestProgress(player, monster)
     end 
 end
 
 -- GetReward: give rewards and mark finished
-function QuestSystem.GetReward(player)
+function QuestSystemByMaps.GetReward(player)
     if not player then return end
     
     local Language = player:getLanguage()
@@ -1108,28 +1127,28 @@ function QuestSystem.GetReward(player)
     local name = player:getName()
     local today = os.date("%Y-%m-%d")
     local currentMap = player:getMapNumber()
-    local npc_id = player:getCacheInt("QuestSystemNPC") or 0
-    local qid = player:getCacheInt("QuestSystemIdentification") or 0
+    local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
+    local qid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
     
     -- 1. VALIDACIÓN DE ESTADO (Antifraude y Persistencia)
     -- Si Status es 2 o Finished es 1, ya cobró hoy.
-    local currentStatus = player:getCacheInt("QuestSystemStatus") or 0
-    if currentStatus == 2 or player:getCacheInt("QuestSystemFinished") == 1 then
-        SendMessage(string.format(QUEST_SYSTEM_MESSAGES[Language][8] or "Ya completaste esta misión hoy."), player:getIndex(), 1)
+    local currentStatus = player:getCacheInt("QuestSystemByMapsStatus") or 0
+    if currentStatus == 2 or player:getCacheInt("QuestSystemByMapsFinished") == 1 then
+        SendMessage(string.format(QUEST_SYSTEM_MAPS_MESSAGES[Language][8] or "Ya completaste esta misión hoy."), player:getIndex(), 1)
         return
     end
 
     -- Validación de estado del personaje (Si está tradeando, muriendo, etc.)
     if player:getInterfaceUse() ~= 0 or player:getInterfaceType() ~= 0 or player:getState() == 32 or player:getDieRegen() ~= 0 or player:getTeleport() ~= 0 then
-        SendMessage(string.format(QUEST_SYSTEM_MESSAGES[Language][1]), player:getIndex(), 1)
+        SendMessage(string.format(QUEST_SYSTEM_MAPS_MESSAGES[Language][1]), player:getIndex(), 1)
         return
     end
 
     -- 2. RECUPERACIÓN DE DATOS (Caché -> RAM)
     -- Si por alguna razón el caché se perdió, intentamos recuperar desde la memoria RAM
     if npc_id == 0 or qid == 0 then
-        if QuestSystem.PlayerActive and QuestSystem.PlayerActive[acc] then
-            for n_k, quests in pairs(QuestSystem.PlayerActive[acc]) do
+        if QuestSystemByMaps.PlayerActive and QuestSystemByMaps.PlayerActive[acc] then
+            for n_k, quests in pairs(QuestSystemByMaps.PlayerActive[acc]) do
                 for q_k, q_v in pairs(quests) do
                     if tonumber(q_v.CanCollect) == 1 then
                         npc_id, qid = tonumber(n_k), tonumber(q_k)
@@ -1151,22 +1170,22 @@ function QuestSystem.GetReward(player)
         return tbl[k1] or tbl[k2] or tbl[k3] or tbl[qid]
     end
 
-    local questInfo = QuestSystem.GetQuestIdentification(qid)
+    local questInfo = QuestSystemByMaps.GetQuestIdentification(qid)
     if not questInfo then return end
 
     -- 3. VALIDACIÓN DIARIA (SOPORTE MULTIMAPA)
-    if QuestSystem.CompletedToday[acc] and QuestSystem.CompletedToday[acc][npc_id] then
-        local record = QuestSystem.CompletedToday[acc][npc_id][currentMap] and QuestSystem.CompletedToday[acc][npc_id][currentMap][tostring(qid)]
+    if QuestSystemByMaps.CompletedToday[acc] and QuestSystemByMaps.CompletedToday[acc][npc_id] then
+        local record = QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] and QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap][tostring(qid)]
         if record == today then
-            SendMessage(string.format(QUEST_SYSTEM_MESSAGES[Language][8]), player:getIndex(), 1)
-            player:setCacheInt("QuestSystemFinished", 1)
-            player:setCacheInt("QuestSystemStatus", 2)
+            SendMessage(string.format(QUEST_SYSTEM_MAPS_MESSAGES[Language][8]), player:getIndex(), 1)
+            player:setCacheInt("QuestSystemByMapsFinished", 1)
+            player:setCacheInt("QuestSystemByMapsStatus", 2)
             return
         end
     end
 
     -- 4. VALIDACIÓN Y CONSUMO DE REQUISITOS (Items, Resets, Coins)
-    local questItemInfo = findInTable(QUEST_SYSTEM_REQUIREMENTS_ITEMS)
+    local questItemInfo = findInTable(QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS)
     if questItemInfo ~= nil then
         local pInv = Inventory.new(player:getIndex())
         for _, req in pairs(questItemInfo) do
@@ -1181,7 +1200,7 @@ function QuestSystem.GetReward(player)
                 end
             end
             if found < (req.Quantity or 1) then
-                SendMessage(string.format(QUEST_SYSTEM_MESSAGES[Language][6]), player:getIndex(), 1)
+                SendMessage(string.format(QUEST_SYSTEM_MAPS_MESSAGES[Language][6]), player:getIndex(), 1)
                 return
             end
         end
@@ -1192,11 +1211,11 @@ function QuestSystem.GetReward(player)
     end
 
     -- Consumo de Resets y Coins (Si está configurado para remover)
-    if QUEST_SYSTEM_REMOVE_RESETS == 1 and (questInfo.Reset or 0) > 0 then player:setReset(player:getReset() - questInfo.Reset) end
-    if QUEST_SYSTEM_REMOVE_MRESETS == 1 and (questInfo.MReset or 0) > 0 then player:setMasterReset(player:getMasterReset() - questInfo.MReset) end
+    if QUEST_SYSTEM_MAPS_REMOVE_RESETS == 1 and (questInfo.Reset or 0) > 0 then player:setReset(player:getReset() - questInfo.Reset) end
+    if QUEST_SYSTEM_MAPS_REMOVE_MRESETS == 1 and (questInfo.MReset or 0) > 0 then player:setMasterReset(player:getMasterReset() - questInfo.MReset) end
     
     local c1r, c2r, c3r, c4r = 0, 0, 0, 0
-    if QUEST_SYSTEM_REMOVE_COIN1 == 1 and (questInfo.Coin1 or 0) > 0 then c1r = questInfo.Coin1 end
+    if QUEST_SYSTEM_MAPS_REMOVE_COIN1 == 1 and (questInfo.Coin1 or 0) > 0 then c1r = questInfo.Coin1 end
     if (c1r+c2r+c3r+c4r) > 0 then RemoveCoins(player:getIndex(), c1r, c2r, c3r, c4r) end
 
     -- 5. ENTREGA DE RECOMPENSAS
@@ -1204,13 +1223,13 @@ function QuestSystem.GetReward(player)
     SendMessage(string.format(" [Quest System] ¡%s Finalizada!", questInfo.QuestName or "Misión"), player:getIndex(), 1)
 
     -- [ Items Reward ]
-    local rewardItems = findInTable(QUEST_SYSTEM_REWARD_ITEMS)
+    local rewardItems = findInTable(QUEST_SYSTEM_MAPS_REWARD_ITEMS)
     if rewardItems then
         for _, it in pairs(rewardItems) do
             if it.Class == -1 or it.Class == player:getClass() then
                 local count = it.Count or 1
                 for i = 1, count do
-                    if QUEST_SYSTEM_USE_GREMORY == 1 then
+                    if QUEST_SYSTEM_MAPS_USE_GREMORY == 1 then
                         GremoryCase.InsertItem(player:getAccountID(), player:getName(), questInfo.QuestName, it.Flag, it.ItemIndex, it.Level, it.Op1, it.Op2, it.Life, it.Exc, it.Ancient, it.JoH, it.SockCount, it.DaysExpire, it.ItemTime)
                     else
                         CreateItemInventory2(player:getIndex(), it.ItemIndex, it.Level, it.Op1, it.Op2, it.Life, it.Exc, it.Ancient, it.JoH, it.SockCount, (it.ItemTime or 0) * 86400)
@@ -1222,7 +1241,7 @@ function QuestSystem.GetReward(player)
     end
 
     -- [ Coins & Ruud Reward ]
-    local rewardCoins = findInTable(QUEST_SYSTEM_REWARD_COINS)
+    local rewardCoins = findInTable(QUEST_SYSTEM_MAPS_REWARD_COINS)
     if rewardCoins then
         local AddC = {0, 0, 0, 0, 0}
         for _, cn in pairs(rewardCoins) do
@@ -1244,7 +1263,7 @@ function QuestSystem.GetReward(player)
 
     -- [ Buffs Reward ]
 	-- [ Exp y Niveles Reward ]
-	local expR = findInTable(QUEST_SYSTEM_REWARD_EXP)
+	local expR = findInTable(QUEST_SYSTEM_MAPS_REWARD_EXP)
 	if expR then
 		local MAX_LEVEL = 400
 		local MAX_MASTER_LEVEL = 400
@@ -1291,7 +1310,7 @@ function QuestSystem.GetReward(player)
 	end
 
     -- [ Puntos Stats Reward ]
-    local ptsR = findInTable(QUEST_SYSTEM_POINTS_REWARDS)
+    local ptsR = findInTable(QUEST_SYSTEM_MAPS_POINTS_REWARDS)
     if ptsR then
         for _, pts in pairs(ptsR) do
             local amt = pts.Amount or 0
@@ -1311,44 +1330,44 @@ function QuestSystem.GetReward(player)
 		"UPDATE dbo.QUEST_SYSTEM_ACTIVE SET Status = 2, Finished = 1, CanCollect = 0, CompletedDate = GETDATE(), MapNumber = %d WHERE AccountID='%s' AND NPC=%d AND QuestIdentification=%d", 
 		currentMap, acc, npc_id, qid
 	)
-	QuestSystem.SafeCreateAsync('FinalizeQuest_'..acc, q_update, -1, 0)
+	QuestSystemByMaps.SafeCreateAsync('FinalizeQuest_'..acc, q_update, -1, 0)
 	
 	-- [MOLDE RAM] Aseguramos que las estructuras existan
-	QuestSystem.CompletedToday[acc] = QuestSystem.CompletedToday[acc] or {}
-	QuestSystem.CompletedToday[acc][npc_id] = QuestSystem.CompletedToday[acc][npc_id] or {}
-	QuestSystem.CompletedToday[acc][npc_id][currentMap] = QuestSystem.CompletedToday[acc][npc_id][currentMap] or {}
+	QuestSystemByMaps.CompletedToday[acc] = QuestSystemByMaps.CompletedToday[acc] or {}
+	QuestSystemByMaps.CompletedToday[acc][npc_id] = QuestSystemByMaps.CompletedToday[acc][npc_id] or {}
+	QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] = QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] or {}
 	
-	QuestSystem.CompletedHistory[acc] = QuestSystem.CompletedHistory[acc] or {}
+	QuestSystemByMaps.CompletedHistory[acc] = QuestSystemByMaps.CompletedHistory[acc] or {}
 	
 	-- 1. RAM: Registro de completado hoy (Para las Diarias)
-	QuestSystem.CompletedToday[acc][npc_id][currentMap][tostring(qid)] = today
+	QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap][tostring(qid)] = today
 	
 	-- 2. RAM: Registro de Historial Eterno (ESTA ES LA QUE FALTA PARA LAS ONE-TIME)
 	-- Al agregarla acá, OpenQuest la verá inmediatamente sin necesidad de reloguear.
-	QuestSystem.CompletedHistory[acc][tostring(qid)] = { isToday = true }
+	QuestSystemByMaps.CompletedHistory[acc][tostring(qid)] = { isToday = true }
 	
 	-- 3. RAM: Limpieza de la misión de la lista de activos
-	if QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npc_id] then
-		QuestSystem.PlayerActive[acc][npc_id][tostring(qid)] = nil
+	if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] then
+		QuestSystemByMaps.PlayerActive[acc][npc_id][tostring(qid)] = nil
 	end
 	
 	-- CACHÉ: Sincronización final con el jugador
-	player:setCacheInt("QuestSystemStatus", 2)
-	player:setCacheInt("QuestSystemFinished", 1)
-	player:setCacheInt("QuestSystemCanCollect", 0)
-	player:setCacheInt("QuestSystemStarted", 0)
-	player:setCacheInt("QuestSystemIdentification", 0)
-	for i = 1, 9 do player:setCacheInt(string.format('QuestSystemKillsMonster%d', i), 0) end
+	player:setCacheInt("QuestSystemByMapsStatus", 2)
+	player:setCacheInt("QuestSystemByMapsFinished", 1)
+	player:setCacheInt("QuestSystemByMapsCanCollect", 0)
+	player:setCacheInt("QuestSystemByMapsStarted", 0)
+	player:setCacheInt("QuestSystemByMapsIdentification", 0)
+	for i = 1, 9 do player:setCacheInt(string.format('QuestSystemByMapsKillsMonster%d', i), 0) end
 	
 	-- Sincronizar con el cliente
 	RefreshCharacter(player:getIndex())
-	QuestSystem.SendHUDUpdate(player, npc_id)
+	QuestSystemByMaps.SendHUDUpdate(player, npc_id)
 	
-	LogAddC(2, string.format("QuestSystem.GetReward: %s [MAP:%d] cobró recompensa satisfactoriamente y RAM actualizada.", acc, currentMap))
+	LogAddC(2, string.format("QuestSystemByMaps.GetReward: %s [MAP:%d] cobró recompensa satisfactoriamente y RAM actualizada.", acc, currentMap))
 end
 
 -- NpcTalk: open UI when clicking NPC
-function QuestSystem.NpcTalk(NpcIndex, PlayerIndex)
+function QuestSystemByMaps.NpcTalk(NpcIndex, PlayerIndex)
     local npc = User.new(NpcIndex)
     local player = User.new(PlayerIndex)
     if not npc or not player then return 0 end
@@ -1358,9 +1377,9 @@ function QuestSystem.NpcTalk(NpcIndex, PlayerIndex)
     local acc = player:getAccountID()
     local today = os.date("%Y-%m-%d")
 
-    if QUEST_SYSTEM_ALLOWED_NPCS[npcClass] or npcClass == QUEST_SYSTEM_NPC_CLASS then
-        player:setCacheInt("QuestSystemNPC", npcClass)
-        QuestSystem.SendLoadingPacket(player, npcClass)
+    if QUEST_SYSTEM_MAPS_ALLOWED_NPCS[npcClass] or npcClass == QUEST_SYSTEM_MAPS_NPC_CLASS then
+        player:setCacheInt("QuestSystemByMapsNPC", npcClass)
+        QuestSystemByMaps.SendLoadingPacket(player, npcClass)
 
         local tAcc, tMap, tNpc = acc, mapId, npcClass
 
@@ -1368,20 +1387,20 @@ function QuestSystem.NpcTalk(NpcIndex, PlayerIndex)
             local p = User.new(PlayerIndex)
             if not p or p:getConnected() < 3 then return end
 
-            QuestSystem.IsDataLoaded[tAcc] = true 
+            QuestSystemByMaps.IsDataLoaded[tAcc] = true 
 
             -- 1. Buscamos solo misiones DIARIAS terminadas hoy
             local showCompletedWindow = false
-            if QuestSystem.CompletedToday[tAcc] and 
-               QuestSystem.CompletedToday[tAcc][tNpc] and 
-               QuestSystem.CompletedToday[tAcc][tNpc][tMap] then
+            if QuestSystemByMaps.CompletedToday[tAcc] and 
+               QuestSystemByMaps.CompletedToday[tAcc][tNpc] and 
+               QuestSystemByMaps.CompletedToday[tAcc][tNpc][tMap] then
                
-                for qid, date_ram in pairs(QuestSystem.CompletedToday[tAcc][tNpc][tMap]) do
+                for qid, date_ram in pairs(QuestSystemByMaps.CompletedToday[tAcc][tNpc][tMap]) do
                     if date_ram == today then
-                        local config = QuestSystem.GetQuestIdentification(tonumber(qid))
+                        local config = QuestSystemByMaps.GetQuestIdentification(tonumber(qid))
                         -- REGLA: Cartel de éxito solo para DIARIAS
                         if config and config.IsOneTime == 0 then
-                            QuestSystem.SendOpenContinue(p, tNpc, tonumber(qid), tMap)
+                            QuestSystemByMaps.SendOpenContinue(p, tNpc, tonumber(qid), tMap)
                             showCompletedWindow = true
                             break
                         end
@@ -1391,7 +1410,7 @@ function QuestSystem.NpcTalk(NpcIndex, PlayerIndex)
 
             -- 2. Si no es una diaria hecha hoy, mostramos la lista (incluyendo la siguiente One-Time)
             if not showCompletedWindow then
-                QuestSystem.OpenQuest(p, tNpc)
+                QuestSystemByMaps.OpenQuest(p, tNpc)
             end
         end)
         return 1
@@ -1400,8 +1419,8 @@ function QuestSystem.NpcTalk(NpcIndex, PlayerIndex)
 end
 
 -- Protocol: packet handler
-function QuestSystem.Protocol(aIndex, Packet, PacketName)
-    if Packet ~= QUEST_SYSTEM_PACKET then return end
+function QuestSystemByMaps.Protocol(aIndex, Packet, PacketName)
+    if Packet ~= QUEST_SYSTEM_MAPS_PACKET then return end
     
     local player = User.new(aIndex)
     if not player then return end
@@ -1409,41 +1428,41 @@ function QuestSystem.Protocol(aIndex, Packet, PacketName)
     local pName = player:getName()
 
     -- [LOG DE ENTRADA] Detectar cualquier paquete que llegue de este sistema
-    -- LogAddC(2, string.format("QuestSystem: Packet Recibido [%s] de %s", PacketName, pName))
+    -- LogAddC(2, string.format("QuestSystemByMaps: Packet Recibido [%s] de %s", PacketName, pName))
 
     -- [1] ABRIR NPC / SOLICITAR LISTA
-    if string.format("%s_%s", QUEST_SYSTEM_PACKET_OPEN_NAME, pName) == PacketName then
+    if string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_OPEN_NAME, pName) == PacketName then
         local mapId_enviado = GetDwordPacket(PacketName, -1) or 0 
-        local npc_id = player:getCacheInt("QuestSystemNPC") or 0
+        local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
         
-        LogAddC(2, string.format("QuestSystem: [OPEN] Jugador %s solicita lista NPC %d (Mapa: %d)", pName, npc_id, mapId_enviado))
+        LogAddC(2, string.format("QuestSystemByMaps: [OPEN] Jugador %s solicita lista NPC %d (Mapa: %d)", pName, npc_id, mapId_enviado))
         
         ClearPacket(PacketName)
-        QuestSystem.OpenQuest(player, npc_id)
+        QuestSystemByMaps.OpenQuest(player, npc_id)
 
     -- [2] DAR CLICK EN "ACEPTAR" (START)
-    elseif string.format("%s_%s", QUEST_SYSTEM_PACKET_START_NAME, pName) == PacketName then
+    elseif string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_START_NAME, pName) == PacketName then
         local questID = GetDwordPacket(PacketName, -1) or 0
-        LogAddC(2, string.format("QuestSystem: [START] %s inició Quest ID %d", pName, questID))
+        LogAddC(2, string.format("QuestSystemByMaps: [START] %s inició Quest ID %d", pName, questID))
         
         ClearPacket(PacketName)
-        QuestSystem.StartQuest(player, questID)
+        QuestSystemByMaps.StartQuest(player, questID)
 
     -- [3] DAR CLICK EN "COBRAR RECOMPENSA"
-    elseif string.format("%s_%s", QUEST_SYSTEM_PACKET_GET_REWARD_NAME, pName) == PacketName then
-        LogAddC(2, string.format("QuestSystem: [REWARD] %s intenta cobrar recompensa", pName))
+    elseif string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_GET_REWARD_NAME, pName) == PacketName then
+        LogAddC(2, string.format("QuestSystemByMaps: [REWARD] %s intenta cobrar recompensa", pName))
         ClearPacket(PacketName)
-        QuestSystem.GetReward(player)
+        QuestSystemByMaps.GetReward(player)
 
     -- [4] BOTON CONTINUAR / CERRAR
-    elseif string.format("%s_%s", QUEST_SYSTEM_PACKET_CONTINUE_QUEST_NAME, pName) == PacketName then
-        local npc_id = player:getCacheInt("QuestSystemNPC")
+    elseif string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_CONTINUE_QUEST_NAME, pName) == PacketName then
+        local npc_id = player:getCacheInt("QuestSystemByMapsNPC")
         
         -- Solo forzamos el cierre del HUD si el jugador NO tiene una misión activa
         -- Esto evita que el HUD "pestañee" cuando abres el NPC estando terminada la misión
         local hasActive = false
-        if QuestSystem.PlayerActive[acc] then
-            for _, npcs in pairs(QuestSystem.PlayerActive[acc]) do
+        if QuestSystemByMaps.PlayerActive[acc] then
+            for _, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
                 for _, q_v in pairs(npcs) do
                     if tonumber(q_v.Status or 0) == 1 then hasActive = true; break end
                 end
@@ -1451,7 +1470,7 @@ function QuestSystem.Protocol(aIndex, Packet, PacketName)
         end
 
         if not hasActive then
-            QuestSystem.ForceCloseClient(player, npc_id)
+            QuestSystemByMaps.ForceCloseClient(player, npc_id)
         end
         
         ClearPacket(PacketName)
@@ -1459,22 +1478,22 @@ function QuestSystem.Protocol(aIndex, Packet, PacketName)
     -- [NUEVO / REVISIÓN] SI TUVIERAS UN PAQUETE DE HUD UPDATE ENTRANDO
     -- Generalmente el HUD Update se envía del Servidor -> Cliente (no entra por aquí)
     -- Pero si tienes una respuesta del cliente, la verías así:
-    elseif string.find(PacketName, "QuestSystemHUDUpdate") then
-        LogAddC(2, string.format("QuestSystem: [HUD_SYNC] Recibido feedback de HUD de %s", pName))
+    elseif string.find(PacketName, "QuestSystemByMapsHUDUpdate") then
+        LogAddC(2, string.format("QuestSystemByMaps: [HUD_SYNC] Recibido feedback de HUD de %s", pName))
     end
 end
 
-function QuestSystem.PlayerJoin(aIndex)
+function QuestSystemByMaps.PlayerJoin(aIndex)
     if not aIndex or aIndex < 0 then return 0 end
     local player = User.new(aIndex)
     if not player then return 0 end
     local acc = player:getAccountID()
     
-    QuestSystem.IsDataLoaded[acc] = false
-    QuestSystem.LoadingAccounts = QuestSystem.LoadingAccounts or {}
-    QuestSystem.LoadingAccounts[acc] = true
-    QuestSystem.PlayerActive[acc] = {}
-    QuestSystem.CompletedHistory[acc] = {} -- Cambiamos Today por History para ser más claros
+    QuestSystemByMaps.IsDataLoaded[acc] = false
+    QuestSystemByMaps.LoadingAccounts = QuestSystemByMaps.LoadingAccounts or {}
+    QuestSystemByMaps.LoadingAccounts[acc] = true
+    QuestSystemByMaps.PlayerActive[acc] = {}
+    QuestSystemByMaps.CompletedHistory[acc] = {} -- Cambiamos Today por History para ser más claros
 
     LogAddC(2, string.format("[QS] Iniciando carga empaquetada para %s...", acc))
 
@@ -1485,7 +1504,7 @@ function QuestSystem.PlayerJoin(aIndex)
         "KillsMonster6, KillsMonster7, KillsMonster8, KillsMonster9 " ..
         "FROM dbo.QUEST_SYSTEM_ACTIVE WHERE AccountID='%s' AND Status=1", acc
     )
-    QuestSystem.SafeCreateAsync('GeACT_' .. acc, q_act, aIndex, 1)
+    QuestSystemByMaps.SafeCreateAsync('GeACT_' .. acc, q_act, aIndex, 1)
 
     -- GeFIN: Misiones terminadas (Status 2). 
     -- Agregamos el DATEDIFF al paquete para saber si se hizo hoy (0) o antes (>0)
@@ -1495,186 +1514,206 @@ function QuestSystem.PlayerJoin(aIndex)
         "FOR XML PATH('')), 1, 1, '') as Pack " ..
         "FROM QUEST_SYSTEM_ACTIVE t WHERE AccountID = '%s' GROUP BY AccountID", acc
     )
-    QuestSystem.SafeCreateAsync('GeFIN_' .. acc, q_fin, aIndex, 1)
+    QuestSystemByMaps.SafeCreateAsync('GeFIN_' .. acc, q_fin, aIndex, 1)
 
     -- Timer de seguridad
     Timer.TimeOut(1.5, function()
-        QuestSystem.IsDataLoaded[acc] = true
-        QuestSystem.LoadingAccounts[acc] = nil
+        QuestSystemByMaps.IsDataLoaded[acc] = true
+        QuestSystemByMaps.LoadingAccounts[acc] = nil
     end)
 
     return 1
 end
 
-function QuestSystem.OnPlayerLogout(aIndex)
+function QuestSystemByMaps.OnPlayerLogout(aIndex)
     local player = User.new(aIndex)
     if player then
         local acc = player:getAccountID()
         if acc and acc ~= "" then
             
             -- [RESCATE CRÍTICO] Antes de borrar la RAM, salvamos los pendientes al SQL
-            if QuestSystem.PendingCounters and QuestSystem.PendingCounters[acc] then
-                for npc_id, quests in pairs(QuestSystem.PendingCounters[acc]) do
+            if QuestSystemByMaps.PendingCounters and QuestSystemByMaps.PendingCounters[acc] then
+                for npc_id, quests in pairs(QuestSystemByMaps.PendingCounters[acc]) do
                     for qid_str, data in pairs(quests) do
                         local mid = 0
                         -- Obtenemos el mapa real de la misión activa
-                        if QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npc_id] and QuestSystem.PlayerActive[acc][npc_id][qid_str] then
-                            mid = QuestSystem.PlayerActive[acc][npc_id][qid_str].MapNumber or 0
+                        if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] and QuestSystemByMaps.PlayerActive[acc][npc_id][qid_str] then
+                            mid = QuestSystemByMaps.PlayerActive[acc][npc_id][qid_str].MapNumber or 0
                         end
-                        QuestSystem.FlushPending(acc, npc_id, tonumber(qid_str), mid)
+                        QuestSystemByMaps.FlushPending(acc, npc_id, tonumber(qid_str), mid)
                     end
                 end
             end
 
             -- Limpieza de RAM
-            QuestSystem.PlayerActive[acc] = nil
-            QuestSystem.LoadingAccounts[acc] = nil
-            QuestSystem.IsDataLoaded[acc] = nil
-            QuestSystem.PendingCounters[acc] = nil
+            QuestSystemByMaps.PlayerActive[acc] = nil
+            QuestSystemByMaps.LoadingAccounts[acc] = nil
+            QuestSystemByMaps.IsDataLoaded[acc] = nil
+            QuestSystemByMaps.PendingCounters[acc] = nil
             
             -- Limpieza de Caché C++
-            player:clearCacheInt("QuestSystemIdentification")
-            player:clearCacheInt("QuestSystemNPC")
-            player:clearCacheInt("QuestSystemStarted")
-            player:clearCacheInt("QuestSystemStatus")
-            player:clearCacheInt("QuestSystemCanCollect")
-            for i = 1, 9 do player:clearCacheInt("QuestSystemKillsMonster"..i) end
+            player:clearCacheInt("QuestSystemByMapsIdentification")
+            player:clearCacheInt("QuestSystemByMapsNPC")
+            player:clearCacheInt("QuestSystemByMapsStarted")
+            player:clearCacheInt("QuestSystemByMapsStatus")
+            player:clearCacheInt("QuestSystemByMapsCanCollect")
+            for i = 1, 9 do player:clearCacheInt("QuestSystemByMapsKillsMonster"..i) end
             
-            LogAddC(2, string.format("QuestSystem: Datos salvados y sesión cerrada para %s", acc))
+            LogAddC(2, string.format("QuestSystemByMaps: Datos salvados y sesión cerrada para %s", acc))
         end
     end
 end
 
-function QuestSystem.CheckDatabase()
-    LogAddC(2, "[QS] Verificando tablas en la Base de Datos...")
+function QuestSystemByMaps.IsQuestFullyCompleted(player)
+    local qid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
+    if qid <= 0 then return false end
 
-    -- Script para crear la TABLA si no existe
-    local tableQuery = [[
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[QUEST_SYSTEM_ACTIVE]') AND type in (N'U'))
-        BEGIN
-            CREATE TABLE [dbo].[QUEST_SYSTEM_ACTIVE](
-                [AccountID] [varchar](10) NOT NULL,
-                [Name] [varchar](10) NULL,
-                [NPC] [int] NOT NULL,
-                [QuestIdentification] [int] NOT NULL,
-                [Finished] [tinyint] DEFAULT 0,
-                [Kills] [int] DEFAULT 0,
-                [KillsMonster1] [int] DEFAULT 0,
-                [KillsMonster2] [int] DEFAULT 0,
-                [KillsMonster3] [int] DEFAULT 0,
-                [KillsMonster4] [int] DEFAULT 0,
-                [KillsMonster5] [int] DEFAULT 0,
-                [KillsMonster6] [int] DEFAULT 0,
-                [KillsMonster7] [int] DEFAULT 0,
-                [KillsMonster8] [int] DEFAULT 0,
-                [KillsMonster9] [int] DEFAULT 0,
-                [CanCollect] [tinyint] DEFAULT 0,
-                [Status] [int] DEFAULT 1,
-                [MapNumber] [int] DEFAULT 0,
-                [CompletedDate] [date] DEFAULT GETDATE()
-            ) ON [PRIMARY];
-            PRINT 'Tabla QUEST_SYSTEM_ACTIVE creada.';
-        END
-    ]]
+    local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
+    local map_id = player:getMapNumber()
+    local key = string.format("%d_%d_%d", npc_id, map_id, qid)
 
-    -- Ejecutamos la creación de la tabla
-    QuestSystem.SafeCreateAsync('QS_InstallTable', tableQuery, -1, 0)
+    -- 1. Validar Monstruos (¿Están todos los grupos en su cantidad?)
+    local monsterList = QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[qid]
+    if monsterList then
+        for idx, mon in ipairs(monsterList) do
+            local curKills = player:getCacheInt(string.format("QuestSystemByMapsKillsMonster%d", idx)) or 0
+            if curKills < (mon.Quantity or 0) then return false end
+        end
+    end
 
-    -- Nota: Los Procedures son más complejos de crear vía Lua por el comando 'GO'.
-    -- Como actualmente tu sistema usa "SafeCreateAsync" con Queries directas (INSERT/UPDATE/DELETE),
-    -- ¡Ya NO necesitás los Procedures! El código actual es independiente de ellos.
+    -- 2. Validar Ítems (¿Están todos en la mochila?)
+    local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid]
+    if itemReqList then
+        local pInv = Inventory.new(player:getIndex())
+        for idx, it in ipairs(itemReqList) do
+            local count = 0
+            for i = 12, 203 do
+                if pInv:isItem(i) ~= 0 and pInv:getIndex(i) == it.ItemIndex then
+                    if it.Level == -1 or pInv:getLevel(i) == it.Level then
+                        -- Contamos durabilidad si es apilable (Jewels), sino 1
+                        local dur = pInv:getDurability(i)
+                        count = count + (dur > 0 and it.ItemIndex >= 7168 and dur or 1)
+                    end
+                end
+            end
+            if count < (it.Quantity or 1) then return false end
+        end
+    end
+
+    return true
+end
+
+function QuestSystemByMaps.PlayerHUDTimer(aIndex)
+    local player = User.new(aIndex)
+    if not player or player:getConnected() < 3 then return end
+
+    local qid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
+    if qid > 0 then
+        local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
+        QuestSystemByMaps.SendHUDUpdate(player, npc_id)
+
+        -- Si el estado en RAM es "Incompleto" (0) pero la revisión dice "Completo" (true)
+        local status = player:getCacheInt("QuestSystemByMapsCanCollect") or 0
+        if status == 0 and QuestSystemByMaps.IsQuestFullyCompleted(player) then
+            player:setCacheInt("QuestSystemByMapsCanCollect", 1)
+            player:setCacheInt("QuestGoalAlertDone", 1)
+
+            -- Notificación visual
+            local pName = string.format("QuestGoalMet_%s", player:getName())
+            CreatePacket(pName, QUEST_SYSTEM_MAPS_PACKET)
+            SetDwordPacket(pName, tonumber(qid) or 0)
+            SendPacket(pName, aIndex)
+            ClearPacket(pName)
+
+            SendMessage("¡Items obtenidos! Objetivos listos.", aIndex, 1)
+        -- Si tira un item y ya no está completa, reseteamos para que pueda volver a saltar el aviso
+        elseif status == 1 and not QuestSystemByMaps.IsQuestFullyCompleted(player) then
+            player:setCacheInt("QuestSystemByMapsCanCollect", 0)
+            player:setCacheInt("QuestGoalAlertDone", 0)
+        end
+    end
+
+    Timer.TimeOut(1.0, function() QuestSystemByMaps.PlayerHUDTimer(aIndex) end)
 end
 
 -- Init: register hooks
-function QuestSystem.Init()
-    LogAddC(2, "QuestSystem: Init called (start)")
-    if QUEST_SYSTEM_SWITCH ~= 1 then
-        LogAddC(2, "QuestSystem: switch disabled")
-        return
-    end
-	-- [INSTALADOR] Ejecutamos el chequeo de DB antes que nada
-    --QuestSystem.CheckDatabase() --Descomentar ACA
-	
-    -- DEBUG: show DB API availability
-    LogAddC(2, string.format("QuestSystem.DEBUG: CreateQuery=%s QuestSystem.SafeCreateAsync=%s DataBaseAsync.Query=%s DataBaseAsync.SetAddValue=%s",
-        tostring(CreateQuery ~= nil), tostring(QuestSystem.SafeCreateAsync ~= nil),
-        tostring(DataBaseAsync ~= nil and DataBaseAsync.Query ~= nil),
-        tostring(DataBaseAsync ~= nil and DataBaseAsync.SetAddValue ~= nil)
-    ))
-
-    if not GameServerFunctions then
-        LogAddC(2, "QuestSystem: GameServerFunctions is nil")
+function QuestSystemByMaps.Init()
+    LogAddC(2, "QuestSystemByMaps: Iniciando sistema...")
+    
+    if QUEST_SYSTEM_MAPS_SWITCH ~= 1 then
+        LogAddC(2, "QuestSystemByMaps: Switch desactivado.")
         return
     end
 
-    -- safe registrar: evita pasar nil callbacks al engine y protege con pcall
+    -- Helper interno para registros seguros
     local function safe_register(funcRegister, cb)
         if not funcRegister then return end
-        if type(cb) ~= "function" then
-            funcRegister(function(...) return 0 end)
-        else
-            funcRegister(function(...)
-                local ok, res = pcall(cb, ...)
-                if not ok then
-                    LogAddC(2, string.format("QuestSystem: handler error: %s", tostring(res)))
-                end
-                return res
-            end)
-        end
+        funcRegister(function(...)
+            local ok, res = pcall(cb, ...)
+            if not ok then LogAddC(2, "QuestSystemByMaps Error: " .. tostring(res)) end
+            return res
+        end)
     end
 
-    safe_register(GameServerFunctions.GameServerProtocol, QuestSystem.Protocol)
-    safe_register(GameServerFunctions.EnterCharacter, QuestSystem.PlayerJoin)
-    safe_register(GameServerFunctions.MonsterDie, QuestSystem.MonsterDie)
-    safe_register(GameServerFunctions.QueryAsyncProcess, QuestSystem.QueryAsyncProcess)
-    safe_register(GameServerFunctions.NpcTalk, QuestSystem.NpcTalk)
-    safe_register(GameServerFunctions.PlayerLogout, QuestSystem.OnPlayerLogout)
+    -- Registro de Funciones Core
+    safe_register(GameServerFunctions.GameServerProtocol, QuestSystemByMaps.Protocol)
+    safe_register(GameServerFunctions.MonsterDie, QuestSystemByMaps.MonsterDie)
+    safe_register(GameServerFunctions.QueryAsyncProcess, QuestSystemByMaps.QueryAsyncProcess)
+    safe_register(GameServerFunctions.NpcTalk, QuestSystemByMaps.NpcTalk)
+    safe_register(GameServerFunctions.PlayerLogout, QuestSystemByMaps.OnPlayerLogout)
 
-    LogAddC(2, "QuestSystem: Init registered handlers")
+    -- Registro de entrada de personaje (Carga datos + Inicia Reloj HUD)
+    safe_register(GameServerFunctions.EnterCharacter, function(aIndex)
+        QuestSystemByMaps.PlayerJoin(aIndex)
+        QuestSystemByMaps.PlayerHUDTimer(aIndex)
+    end)
 
-    -- [ ESCUDO DE REINICIO: RE-HIDRATACIÓN GLOBAL ]
-    -- Si recargás el script mientras hay gente online, esto restaura su RAM
+    LogAddC(2, "QuestSystemByMaps: Hooks y Sincronizador HUD listos.")
+
+    -- [ ESCUDO DE REINICIO ]
+    -- Si recargás el script con gente online, esto les activa el HUD inmediatamente
     if type(gObjIsConnectedGP) == "function" then
         local count = 0
-        -- Los emuladores MuEmu/Louis suelen ubicar a los usuarios a partir del index 8000
-        for i = 8000, 12000 do
+        for i = 0, 12000 do -- Ajustá el rango según tu servidor
             if gObjIsConnectedGP(i) ~= 0 then
-                QuestSystem.PlayerJoin(i)
+                QuestSystemByMaps.PlayerJoin(i)
+                QuestSystemByMaps.PlayerHUDTimer(i) -- Iniciamos su reloj personal
                 count = count + 1
             end
         end
         if count > 0 then
-            LogAddC(2, string.format("QuestSystem: [Reload Shield] Se re-hidrataron %d jugadores online.", count))
+            LogAddC(2, string.format("QuestSystemByMaps: [Reload Shield] %d jugadores sincronizados.", count))
         end
     end
 end
 
+
 -- Compatibility shims
-function QuestSystem.OpenContinueQuest(player)
+function QuestSystemByMaps.OpenContinueQuest(player)
     if type(player) == "number" then player = User.new(player) end
     if not player then return end
-    local packetString = string.format("%s_%s", QUEST_SYSTEM_PACKET_CONTINUE_QUEST_NAME, player:getName())
-    CreatePacket(packetString, QUEST_SYSTEM_PACKET)
+    local packetString = string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_CONTINUE_QUEST_NAME, player:getName())
+    CreatePacket(packetString, QUEST_SYSTEM_MAPS_PACKET)
     SendPacket(packetString, player:getIndex())
     ClearPacket(packetString)
 end
 
-function QuestSystem.AbandonQuest(player)
+function QuestSystemByMaps.AbandonQuest(player)
     if type(player) == "number" then player = User.new(player) end
     if not player then return end
 
     local acc = player:getAccountID()
-    local npc_id = player:getCacheInt("QuestSystemNPC") or 0
-    local questID = player:getCacheInt("QuestSystemIdentification") or 0
+    local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
+    local questID = player:getCacheInt("QuestSystemByMapsIdentification") or 0
     local mapId = player:getMapNumber() -- [NUEVO] Obtener mapa actual
 
     -- 1. Limpiar Caché del Personaje (C++)
-    player:clearCacheInt("QuestSystemIdentification")
-    player:clearCacheInt("QuestSystemStarted")
-    player:clearCacheInt("QuestSystemCanCollect")
-    player:clearCacheInt("QuestSystemKills")
+    player:clearCacheInt("QuestSystemByMapsIdentification")
+    player:clearCacheInt("QuestSystemByMapsStarted")
+    player:clearCacheInt("QuestSystemByMapsCanCollect")
+    player:clearCacheInt("QuestSystemByMapsKills")
     for i = 1, 9 do 
-        player:clearCacheInt(string.format("QuestSystemKillsMonster%d", i)) 
+        player:clearCacheInt(string.format("QuestSystemByMapsKillsMonster%d", i)) 
     end
 
     -- 2. Actualizar Base de Datos (Con MapNumber)
@@ -1687,35 +1726,35 @@ function QuestSystem.AbandonQuest(player)
         -- pero el UPDATE a 0 está bien si quieres mantener el registro.
         local q = string.format("UPDATE dbo.QUEST_SYSTEM_ACTIVE SET Finished = 0, Kills = 0, KillsMonster1=0,KillsMonster2=0,KillsMonster3=0,KillsMonster4=0,KillsMonster5=0,KillsMonster6=0,KillsMonster7=0,KillsMonster8=0,KillsMonster9=0 WHERE %s", where)
         
-        QuestSystem.SafeCreateAsync('AbandonQuest_'..acc..'_'..tostring(questID), q, -1, 1)
+        QuestSystemByMaps.SafeCreateAsync('AbandonQuest_'..acc..'_'..tostring(questID), q, -1, 1)
 
         -- 3. Limpiar Memoria RAM (Lua)
-        if QuestSystem.PlayerActive[acc] and QuestSystem.PlayerActive[acc][npc_id] then
-            QuestSystem.PlayerActive[acc][npc_id][tostring(questID)] = nil
-            LogAddC(2, string.format("QuestSystem: %s abandonó quest %d en mapa %d (RAM limpia)", acc, questID, mapId))
+        if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] then
+            QuestSystemByMaps.PlayerActive[acc][npc_id][tostring(questID)] = nil
+            LogAddC(2, string.format("QuestSystemByMaps: %s abandonó quest %d en mapa %d (RAM limpia)", acc, questID, mapId))
         end
     end
 
     -- 4. Refrescar la ventana del NPC
-    QuestSystem.OpenQuest(player, npc_id)
+    QuestSystemByMaps.OpenQuest(player, npc_id)
 end
 
-QuestSystem.LastCheckDate = os.date("%Y-%m-%d")
+QuestSystemByMaps.LastCheckDate = os.date("%Y-%m-%d")
 
-function QuestSystem.MidnightControl()
+function QuestSystemByMaps.MidnightControl()
     local currentDate = os.date("%Y-%m-%d")
     
     -- Si la fecha cambió (pasó la medianoche)
-    if currentDate ~= QuestSystem.LastCheckDate then
+    if currentDate ~= QuestSystemByMaps.LastCheckDate then
         LogAddC(2, "--------------------------------------------------")
         LogAddC(2, "[QS] CAMBIO DE DÍA DETECTADO. Reseteando misiones...")
         LogAddC(2, "--------------------------------------------------")
         
         -- 1. Limpiamos la RAM de misiones terminadas
-        QuestSystem.CompletedToday = {}
+        QuestSystemByMaps.CompletedToday = {}
         
         -- 2. Actualizamos la fecha de referencia
-        QuestSystem.LastCheckDate = currentDate
+        QuestSystemByMaps.LastCheckDate = currentDate
         
         -- 3. (Opcional) Avisar a los jugadores online
         -- GlobalMessage("Las misiones diarias han sido reiniciadas.")
@@ -1723,7 +1762,7 @@ function QuestSystem.MidnightControl()
 end
 
 -- Registramos el Timer para que corra cada 60 segundos
-Timer.TimeOut(60, QuestSystem.MidnightControl, -1)
+Timer.TimeOut(60, QuestSystemByMaps.MidnightControl, -1)
 
 -- start
-QuestSystem.Init()
+QuestSystemByMaps.Init()
