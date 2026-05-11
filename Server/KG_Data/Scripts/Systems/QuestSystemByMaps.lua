@@ -1067,6 +1067,66 @@ function QuestSystemByMaps.CheckQuestProgress(member, monster)
     end
 end
 
+-- Función para procesar el Drop de ítems de Quest
+function QuestSystemByMaps.HandleQuestDrop(player, monster)
+    local mClass = monster:getClass()
+    local drop = QUEST_SYSTEM_MAPS_DROP[mClass]
+
+    if not drop then return end
+
+    local playerQid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
+    if playerQid ~= drop.qid then return end
+
+    -- --- NUEVO BLOQUE DE SEGURIDAD ---
+    -- Buscamos cuántos pide la misión exactamente para este ítem
+    local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
+    local map_id = player:getMapNumber()
+    local key = string.format("%d_%d_%d", npc_id, map_id, playerQid)
+    local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[playerQid]
+
+    if itemReqList then
+        local targetItemID = GET_ITEM(drop.s, drop.i)
+        for _, it in ipairs(itemReqList) do
+            -- Si este requisito coincide con lo que el bicho va a soltar...
+            if it.ItemIndex == targetItemID then
+                local currentCount = QuestSystemByMaps.GetCurrentItemCount(player, it.ItemIndex, drop.lvl)
+                -- Si ya tenemos lo que pide (o más), salimos sin dropear nada
+                if currentCount >= (it.Quantity or 1) then 
+                    return 
+                end
+            end
+        end
+    end
+    -- --------------------------------
+
+    -- Si pasó el filtro anterior, calculamos probabilidad y dropeamos
+    if math.random(1, 100) <= drop.rate then
+        local aIndex = player:getIndex()
+        local map = player:getMapNumber()
+        local x, y = monster:getX(), monster:getY()
+        local itemID = GET_ITEM(drop.s, drop.i)
+
+        CreateItemMap(aIndex, map, x, y, itemID, drop.lvl, 0, 0, 0, 0, 0, 0, 0, 0)
+        SendMessage("[Quest] ¡Has encontrado un objeto de misión!", aIndex, 1)
+    end
+end
+
+function QuestSystemByMaps.GetCurrentItemCount(player, targetIndex, targetLevel)
+    local pInv = Inventory.new(player:getIndex())
+    local count = 0
+    -- Escaneamos la mochila (slots 12 al 203)
+    for i = 12, 203 do
+        if pInv:isItem(i) ~= 0 and pInv:getIndex(i) == targetIndex then
+            if targetLevel == -1 or pInv:getLevel(i) == targetLevel then
+                local dur = pInv:getDurability(i)
+                -- Si es apilable (Jewel/Misc), sumamos durabilidad. Si no, sumamos 1.
+                count = count + (dur > 0 and targetIndex >= 7168 and dur or 1)
+            end
+        end
+    end
+    return count
+end
+
 -- MonsterDie: party-aware wrapper
 function QuestSystemByMaps.MonsterDie(PlayerIndex, MonsterIndex)
     local player = User.new(PlayerIndex)
@@ -1114,7 +1174,11 @@ function QuestSystemByMaps.MonsterDie(PlayerIndex, MonsterIndex)
             end
         end
     else
-        QuestSystemByMaps.CheckQuestProgress(player, monster)
+	-- 1. Procesar el conteo de muertes (Tu lógica de siempre)
+    QuestSystemByMaps.CheckQuestProgress(player, monster)
+
+    -- 2. Procesar el posible drop del ítem de misión (Nueva lógica)
+    QuestSystemByMaps.HandleQuestDrop(player, monster)
     end 
 end
 
@@ -1608,32 +1672,50 @@ function QuestSystemByMaps.PlayerHUDTimer(aIndex)
     if not player or player:getConnected() < 3 then return end
 
     local qid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
+    
     if qid > 0 then
         local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
+        
+        -- Sincronizamos el HUD
         QuestSystemByMaps.SendHUDUpdate(player, npc_id)
 
-        -- Si el estado en RAM es "Incompleto" (0) pero la revisión dice "Completo" (true)
+        -- Verificamos si pasó de 0 a 1 por recoger items
         local status = player:getCacheInt("QuestSystemByMapsCanCollect") or 0
+        
         if status == 0 and QuestSystemByMaps.IsQuestFullyCompleted(player) then
             player:setCacheInt("QuestSystemByMapsCanCollect", 1)
-            player:setCacheInt("QuestGoalAlertDone", 1)
 
-            -- Notificación visual
+            -- [ SOLUCIÓN AQUÍ ] Actualizamos la RAM (pEntry) para que el NPC lo sepa de inmediato
+            local acc = player:getAccountID()
+            local q_s = tostring(qid)
+            local pEntry = QuestSystemByMaps.PlayerActive and QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] and QuestSystemByMaps.PlayerActive[acc][npc_id][q_s]
+            
+            if pEntry then 
+                pEntry.CanCollect = 1 
+            end
+            -------------------------------------------------------------------------
+
+            -- Notificación visual (Cartel "COMPLETED!")
             local pName = string.format("QuestGoalMet_%s", player:getName())
             CreatePacket(pName, QUEST_SYSTEM_MAPS_PACKET)
             SetDwordPacket(pName, tonumber(qid) or 0)
             SendPacket(pName, aIndex)
             ClearPacket(pName)
 
-            SendMessage("¡Items obtenidos! Objetivos listos.", aIndex, 1)
-        -- Si tira un item y ya no está completa, reseteamos para que pueda volver a saltar el aviso
-        elseif status == 1 and not QuestSystemByMaps.IsQuestFullyCompleted(player) then
-            player:setCacheInt("QuestSystemByMapsCanCollect", 0)
-            player:setCacheInt("QuestGoalAlertDone", 0)
+            -- Sincronizamos DB ByMaps
+            local map_id = player:getMapNumber()
+            local queryT = string.format(
+                "UPDATE QUEST_SYSTEM_MAPS_ACTIVE SET CanCollect = 1 WHERE AccountID='%s' AND QuestIdentification=%d AND MapNumber=%d",
+                acc, qid, map_id)
+            QuestSystemByMaps.SafeCreateAsync('CanQTimerByMaps', queryT, -1, 0)
+
+            SendMessage("¡Objetivos listos! Ve por tu recompensa.", aIndex, 1)
         end
     end
 
-    Timer.TimeOut(1.0, function() QuestSystemByMaps.PlayerHUDTimer(aIndex) end)
+    Timer.TimeOut(1.0, function() 
+        QuestSystemByMaps.PlayerHUDTimer(aIndex) 
+    end)
 end
 
 -- Init: register hooks
