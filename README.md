@@ -11,10 +11,8 @@ El requerimiento de Items no esta funcionando por el momento.
 
 Antes de arrancar el GS o reiniciar lua descomentar al final del codigo QuestSystemByMaps.lua la linea dentro de:
 
-function QuestSystem.Init()
+Se Actualizaron Nombres de Funciones y Variables
 
--- [INSTALADOR] Ejecutamos el instalador de DB antes que nada
-   
-	--QuestSystem.CheckDatabase() --Descomentar ACA
-	
-Una vez ejecutado el lua, volver a comentar y recomiendo reiniciar el gs completo.
+Se quito el Instalador por q daba problemas en el SQL
+
+Se agrego la query para instalacion manual.
