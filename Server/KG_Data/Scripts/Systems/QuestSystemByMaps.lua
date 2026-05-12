@@ -400,73 +400,66 @@ function QuestSystemByMaps.BuildQuestPacket(player, npc_id, packetName, provided
     local items_to_send = {0,0,0,0,0,0,0,0,0,0} 
     
     local allItemsDone = true
+    local quest_map_owner = 0 -- [NUEVO] Para guardar el mapa origen de la misión
 
-    -- [A] BUSCAR MISIÓN ACTIVA (Filtrado por Mapa)
+    -- [A] BUSCAR MISIÓN ACTIVA (Persistente entre mapas)
     if QuestSystemByMaps.PlayerActive[acc] then
         for n_id, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
             for q_id, q_v in pairs(npcs) do
                 -- Solo procesamos si no está marcada como finalizada (Status 1)
                 if SD(q_v.Finished) == 0 then
                     local check_qid = SD(q_id)
-                    local quest_map_owner = SD(q_v.MapNumber)
+                    quest_map_owner = SD(q_v.MapNumber) -- Capturamos el mapa dueño
 
-                    -- Si es HUD, forzamos la llave del NPC para que el cliente la encuentre
                     if isHUDUpdate then npcKey = SD(n_id) end
+                    
+                    qid_active = check_qid
 
-                    -- Validamos si la misión activa es del mapa actual
+                    -- 1. Determinamos el estado (0=Incomp, 1=Reward, 2=Remote)
                     if quest_map_owner == mapKey then
-                        qid_active = check_qid
                         can_collect_to_send = SD(q_v.CanCollect)
-                        
-                        -- 1. Cargamos Kills de Monstruos
-                        if q_v.KillsMonster then
-                            for i = 1, 9 do kills_monster[i] = SD(q_v.KillsMonster[i]) end
-                        end
+                    else
+                        can_collect_to_send = 2 -- Misión en curso (Remoto)
+                    end
 
-                        -- 2. CONTEO DE ITEMS EN TIEMPO REAL (Escaneo de Mochila)
-                        local itemReq = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[string.format("%d_%d_%d", n_id, mapKey, qid_active)] 
-                                        or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid_active]
-                        
-                        if itemReq then
-                            local pInv = Inventory.new(player:getIndex())
-                            for idx, req in ipairs(itemReq) do
-                                if idx > 10 then break end
-                                local currentCount = 0
-                                for i = 12, 203 do -- Slots del inventario
-                                    if pInv:isItem(i) ~= 0 and pInv:getIndex(i) == req.ItemIndex then
-                                        -- Validar Level, Skill y Luck (Compatibilidad Base)
-                                        local lvOk = (req.Level == -1 or pInv:getLevel(i) == req.Level)
-                                        local skOk = (req.Skill == -1 or pInv:getItemTable(i, 2) == (req.Skill or 0))
-                                        local lkOk = (req.Luck == -1 or pInv:getItemTable(i, 3) == (req.Luck or 0))
-                                        
-                                        if lvOk and skOk and lkOk then
-                                            if GetStackItem(pInv:getIndex(i)) <= 0 then
-                                                currentCount = currentCount + 1
-                                            else
-                                                currentCount = currentCount + (pInv:getDurability(i) > 0 and pInv:getDurability(i) or 1)
-                                            end
+                    -- 2. CARGAMOS LOS DATOS SIEMPRE (Para que el HUD no desaparezca)
+                    if q_v.KillsMonster then
+                        for i = 1, 9 do kills_monster[i] = SD(q_v.KillsMonster[i]) end
+                    end
+
+                    -- 3. CONTEO DE ITEMS (Usando el mapa de la quest para la Key)
+                    -- Cambiamos mapKey por quest_map_owner para que cuente bien en cualquier mapa
+                    local itemReqKey = string.format("%d_%d_%d", n_id, quest_map_owner, qid_active)
+                    local itemReq = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[itemReqKey] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid_active]
+                    
+                    if itemReq then
+                        local pInv = Inventory.new(player:getIndex())
+                        for idx, req in ipairs(itemReq) do
+                            if idx > 10 then break end
+                            local currentCount = 0
+                            for i = 12, 203 do
+                                if pInv:isItem(i) ~= 0 and pInv:getIndex(i) == req.ItemIndex then
+                                    local lvOk = (req.Level == -1 or pInv:getLevel(i) == req.Level)
+                                    if lvOk then
+                                        if GetStackItem(pInv:getIndex(i)) <= 0 then
+                                            currentCount = currentCount + 1
+                                        else
+                                            currentCount = currentCount + (pInv:getDurability(i) > 0 and pInv:getDurability(i) or 1)
                                         end
                                     end
                                 end
-                                items_to_send[idx] = currentCount
-                                -- Si falta un solo ítem de la lista, marcamos como incompleto
-                                if currentCount < (req.Quantity or 1) then allItemsDone = false end
                             end
+                            items_to_send[idx] = currentCount
+                            if currentCount < (req.Quantity or 1) then allItemsDone = false end
                         end
-
-                        -- 3. VALIDACIÓN CRUZADA (Monstruos + Ítems)
-                        -- Si el servidor dice que puede cobrar (porque mató los bichos) pero NO tiene los ítems
-                        -- forzamos can_collect_to_send a 0 para que el HUD no muestre el Check verde erróneo.
-                        if can_collect_to_send == 1 and not allItemsDone then
-                            can_collect_to_send = 0
-                        end
-
-                    else
-                        -- Si tiene una misión en OTRO mapa, la marcamos como Remota
-                        qid_active = check_qid
-                        can_collect_to_send = 2 -- Flag de "Remoto"
                     end
-                    break
+
+                    -- Protección de Check Verde
+                    if quest_map_owner == mapKey and can_collect_to_send == 1 and not allItemsDone then
+                        can_collect_to_send = 0
+                    end
+
+                    break 
                 end
             end
             if qid_active > 0 then break end
@@ -492,7 +485,12 @@ function QuestSystemByMaps.BuildQuestPacket(player, npc_id, packetName, provided
     -- [C] ENVÍO DE PAQUETE (HEADER Y STATS)
     CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
     SetDwordPacket(packetName, npcKey)
-    SetDwordPacket(packetName, mapKey)
+
+    -- [CAMBIO CLAVE PARA EL HUD]
+    -- Si hay misión activa, enviamos el mapa de la misión para que el cliente dibuje los nombres.
+    local mapToSend = (qid_active > 0 and quest_map_owner > 0) and quest_map_owner or mapKey
+    SetDwordPacket(packetName, mapToSend)
+
     SetDwordPacket(packetName, SD(qid_active))
 
     -- Stats (9 Dwords)
@@ -1633,19 +1631,29 @@ function QuestSystemByMaps.IsQuestFullyCompleted(player)
     if qid <= 0 then return false end
 
     local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
-    local map_id = player:getMapNumber()
-    local key = string.format("%d_%d_%d", npc_id, map_id, qid)
+    local acc = player:getAccountID()
+    local q_s = tostring(qid)
+    
+    -- [CORRECCIÓN] Buscamos el mapa original en la RAM en lugar de usar player:getMapNumber()
+    local pEntry = QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] and QuestSystemByMaps.PlayerActive[acc][npc_id][q_s]
+    local quest_map = pEntry and pEntry.MapNumber or player:getMapNumber()
+    
+    local key = string.format("%d_%d_%d", npc_id, quest_map, qid)
 
-    -- 1. Validar Monstruos (¿Están todos los grupos en su cantidad?)
+    -- 1. Validar Monstruos
     local monsterList = QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[qid]
     if monsterList then
         for idx, mon in ipairs(monsterList) do
             local curKills = player:getCacheInt(string.format("QuestSystemByMapsKillsMonster%d", idx)) or 0
             if curKills < (mon.Quantity or 0) then return false end
         end
+    else
+        -- [SEGURIDAD] Si no encontramos la lista de monstruos en este mapa, 
+        -- NO podemos decir que está completa.
+        return false 
     end
 
-    -- 2. Validar Ítems (¿Están todos en la mochila?)
+    -- 2. Validar Ítems
     local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid]
     if itemReqList then
         local pInv = Inventory.new(player:getIndex())
@@ -1654,7 +1662,6 @@ function QuestSystemByMaps.IsQuestFullyCompleted(player)
             for i = 12, 203 do
                 if pInv:isItem(i) ~= 0 and pInv:getIndex(i) == it.ItemIndex then
                     if it.Level == -1 or pInv:getLevel(i) == it.Level then
-                        -- Contamos durabilidad si es apilable (Jewels), sino 1
                         local dur = pInv:getDurability(i)
                         count = count + (dur > 0 and it.ItemIndex >= 7168 and dur or 1)
                     end
