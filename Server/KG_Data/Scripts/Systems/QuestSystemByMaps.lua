@@ -1065,53 +1065,76 @@ function QuestSystemByMaps.CheckQuestProgress(member, monster)
     end
 end
 
+function QuestSystemByMaps.GetQuestConfigMap(qid)
+    if not QUEST_SYSTEM_BY_MAP then return -1 end
+    for mapId, quests in pairs(QUEST_SYSTEM_BY_MAP) do
+        for _, q in ipairs(quests) do
+            if tonumber(q.QuestIdentification) == tonumber(qid) then
+                return tonumber(mapId)
+            end
+        end
+    end
+    return -1
+end
+
 -- Función para procesar el Drop de ítems de Quest
 function QuestSystemByMaps.HandleQuestDrop(player, monster)
     local mClass = monster:getClass()
     local drop = QUEST_SYSTEM_MAPS_DROP[mClass]
 
-    -- 1. Si el bicho no está en la tabla de drops, salimos
-    if not drop then return end
+    if not drop then return end -- Este bicho no suelta nada de quest
 
-    local playerQid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
-    
-    -- 2. Validar que el jugador tenga la misión correcta activa
-    if playerQid ~= drop.qid then return end
+    local acc = player:getAccountID()
+    local activeQuestID = 0
+    local activeNPC = 0
 
-    -- [NUEVO BLOQUE DE SEGURIDAD: VALIDACIÓN DE MAPA]
-    -- Obtenemos el mapa donde murió el monstruo y el mapa dueño de la misión
-    local monsterMap = monster:getMapNumber()
-    local questMap = player:getCacheInt("QuestSystemByMapsMapNumber") or -1
+    -- 1. BUSCAR QUÉ MISIÓN TIENE ACTIVA EL JUGADOR
+    if QuestSystemByMaps.PlayerActive[acc] then
+        for n_id, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
+            for q_id, q_v in pairs(npcs) do
+                if tonumber(q_v.Finished or 0) == 0 then
+                    activeQuestID = tonumber(q_id)
+                    activeNPC = tonumber(n_id)
+                    break
+                end
+            end
+            if activeQuestID > 0 then break end
+        end
+    end
 
-    -- Si el mapa del bicho no coincide con el mapa de la misión, abortamos el drop
-    if questMap ~= -1 and monsterMap ~= questMap then
-        -- LogAddC(2, string.format("[QS-Drop-Block] %s mató bicho %d en mapa %d, pero la quest es del mapa %d", player:getName(), mClass, monsterMap, questMap))
+    -- 2. VALIDAR ID: ¿La misión activa es la que pide este drop?
+    if activeQuestID == 0 or activeQuestID ~= tonumber(drop.qid) then 
         return 
     end
-    -- ----------------------------------------------
 
-    -- 3. BLOQUE DE SEGURIDAD: Cantidad máxima de ítems
-    -- Buscamos cuántos pide la misión exactamente para este ítem
-    local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
-    local key = string.format("%d_%d_%d", npc_id, monsterMap, playerQid)
-    local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[playerQid]
+    -- 3. VALIDAR MAPA: ¿El mapa del bicho es el mapa donde DEBE hacerse la quest?
+    local monsterMap = monster:getMapNumber()
+    local configMap = QuestSystemByMaps.GetQuestConfigMap(activeQuestID)
+
+    if configMap ~= -1 and monsterMap ~= configMap then
+        -- Si el bicho murió en mapa 0 pero la quest 200 es del mapa 1, no hay drop.
+        return 
+    end
+
+    -- 4. VALIDAR CANTIDAD: ¿Ya tiene los ítems necesarios?
+    -- Usamos la llave completa para buscar en los requerimientos
+    local key = string.format("%d_%d_%d", activeNPC, configMap, activeQuestID)
+    local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[activeQuestID]
 
     if itemReqList then
         local targetItemID = GET_ITEM(drop.s, drop.i)
         for _, it in ipairs(itemReqList) do
-            -- Si este requisito coincide con lo que el bicho va a soltar...
             if it.ItemIndex == targetItemID then
                 local currentCount = QuestSystemByMaps.GetCurrentItemCount(player, it.ItemIndex, drop.lvl)
-                -- Si ya tenemos lo que pide (o más), salimos sin dropear nada
                 if currentCount >= (it.Quantity or 1) then 
-                    return 
+                    return -- Ya tiene los ítems, no dropear más
                 end
             end
         end
     end
 
-    -- 4. PROBABILIDAD Y DROP
-    if math.random(1, 100) <= drop.rate then
+    -- 5. SUERTE Y DROP
+    if math.random(1, 100) <= (drop.rate or 0) then
         local aIndex = player:getIndex()
         local x, y = monster:getX(), monster:getY()
         local itemID = GET_ITEM(drop.s, drop.i)
