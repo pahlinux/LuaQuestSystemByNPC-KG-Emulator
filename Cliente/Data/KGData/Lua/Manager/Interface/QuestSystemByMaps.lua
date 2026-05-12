@@ -445,7 +445,7 @@ function QuestSystemByMaps.RenderFrame()
     local WinW, WinH = 250, 270
     m_Pos.x, m_Pos.y = x, y 
 
-    -- [ FONDO Y BORDES ] - (Mantener igual que tu código)
+    -- [ FONDO Y BORDES ]
     EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
     glColor4f(0.0, 0.0, 0.0, 0.8); DrawBar(x - 4, y - 3, WinW + 7, WinH + 5); EndDrawBar()
     glColor3f(1.0, 1.0, 1.0)
@@ -458,6 +458,7 @@ function QuestSystemByMaps.RenderFrame()
 
     -- Botón de salida (X)
     local closeX, closeY = x + WinW - 25, y + 10
+    SetFontType(1) -- Aseguramos negrita para la X también
     if MousePosX() >= closeX and MousePosX() <= closeX + 15 and MousePosY() >= closeY and MousePosY() <= closeY + 15 then
         SetTextColor(255, 50, 50, 255)
     else
@@ -486,7 +487,6 @@ function QuestSystemByMaps.RenderFrame()
             btnText = "INCOMPLETO"; isClickable = false
         else
             btnText = "START"
-            -- BLOQUEO CRÍTICO: Si no cumple requisitos, el botón NO es clickable
             if not QuestSystemByMapsCanStart then
                 isClickable = false
             end
@@ -496,13 +496,15 @@ function QuestSystemByMaps.RenderFrame()
         local isHoverAction = MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= actionY - 5 and MousePosY() <= actionY + 15
         
         if not isClickable then 
-            SetTextColor(80, 80, 80, 255) -- Gris oscuro (Bloqueado)
+            SetTextColor(80, 80, 80, 255)
         elseif isHoverAction then 
-            SetTextColor(255, 255, 100, 255) -- Amarillo (Hover)
+            SetTextColor(255, 255, 100, 255)
         else 
-            SetTextColor(225, 225, 225, 255) -- Blanco (Normal)
+            SetTextColor(0, 250, 154, 255)
         end
 
+        -- FIX: Forzamos el FontType(1) justo antes de renderizar el botón
+        SetFontType(1)
         RenderText3(actionX, actionY, btnText, WinW, 3)
     end
 
