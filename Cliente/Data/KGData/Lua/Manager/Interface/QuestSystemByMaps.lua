@@ -170,7 +170,7 @@ QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_DUN ] = {
     { MonsterIndex = 14, Quantity = 10, MonsterName = 'Skeleton' },
 }
 QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[ KEY_DUN ] = {
-    { ItemIndex = GET_ITEM(14, 180), Level = -1, Luck = -1, Skill = -1, Quantity = 5 },
+    { ItemIndex = GET_ITEM(14, 113), Level = -1, Luck = -1, Skill = -1, Quantity = 5 },
 }
 QUEST_SYSTEM_MAPS_REWARD_COINS[ KEY_DUN ] = {
     { CoinName = 'Ruud', CoinAmount = 150, CoinIdentification = 4 },
@@ -329,6 +329,23 @@ QUEST_SYSTEM_MAPS_MESSAGES['Spn'] = {
 
 
 QuestSystemByMaps = {}
+
+-- [TABLA DE NOMBRES - SOLO CLIENTE]
+QuestSystemByMaps.MapNames = {
+    [0] = "Lorencia",
+    [1] = "Dungeon",
+    [2] = "Devias",
+    [3] = "Noria",
+    [4] = "LostTower",
+    [6] = "Arena",
+    [7] = "Atlans",
+    [8] = "Tarkan",
+    [10] = "Icarus",
+    [31] = "Land of Trials",
+    [33] = "Aida",
+    [37] = "Kanturu",
+}
+
 QuestSystemByMaps.OpenedByPlayer = 0
 QuestSystemByMaps.AlwaysContinue = QuestSystemByMaps.AlwaysContinue or {}
 local QuestSystemByMapsInfo = {}
@@ -475,12 +492,18 @@ function QuestSystemByMaps.RenderFrame()
 
     if QuestSystemByMaps.OpenedByPlayer == 1 or canCollectState == 2 or QuestSystemByMapsFinishedQuest == 1 or hasActiveID then
         local btnText = ""
+        local subText = "" -- [NUEVO] Variable para la segunda línea
         local isClickable = true
 
         if QuestSystemByMapsFinishedQuest == 1 then
             btnText = "CONTINUAR"
         elseif canCollectState == 2 then
-            btnText = "MISIÓN EN CURSO"; isClickable = false
+            btnText = "MISIÓN EN CURSO"
+            -- [NUEVO] Agregamos el nombre del mapa debajo
+            local qMap = QuestSystemByMaps.CurrentMapID or 0
+            local mapName = QuestSystemByMaps.MapNames[qMap] or ("Mapa " .. qMap)
+            subText = "(Vuelve a " .. mapName .. ")"
+            isClickable = false
         elseif canCollectState == 1 then
             btnText = "COLLECT REWARD"
         elseif isStarted then
@@ -493,19 +516,30 @@ function QuestSystemByMaps.RenderFrame()
         end
 
         local actionX, actionY = x, y + WinH - 32
+        
+        -- Si hay una segunda línea de texto, subimos un poco el texto principal para que quepan ambos
+        local textY = (subText ~= "") and (actionY - 6) or actionY
+
         local isHoverAction = MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= actionY - 5 and MousePosY() <= actionY + 15
         
         if not isClickable then 
-            SetTextColor(80, 80, 80, 255)
+            SetTextColor(80, 80, 80, 255) -- Gris oscuro (Bloqueado)
         elseif isHoverAction then 
-            SetTextColor(255, 255, 100, 255)
+            SetTextColor(255, 255, 100, 255) -- Amarillo (Hover)
         else 
-            SetTextColor(0, 250, 154, 255)
+            SetTextColor(0, 250, 154, 255) -- Verde menta original (Normal)
         end
 
-        -- FIX: Forzamos el FontType(1) justo antes de renderizar el botón
         SetFontType(1)
-        RenderText3(actionX, actionY, btnText, WinW, 3)
+        
+        -- Renderizamos el texto principal ("MISIÓN EN CURSO", "START", etc)
+        RenderText3(actionX, textY, btnText, WinW, 3)
+
+        -- [NUEVO] Renderizamos la segunda línea solo si existe (El mapa)
+        if subText ~= "" then
+            SetTextColor(255, 140, 0, 255) -- Naranja para que llame la atención a dónde ir
+            RenderText3(actionX, textY + 12, subText, WinW, 3)
+        end
     end
 
     glColor3f(1.0, 1.0, 1.0)
@@ -1160,6 +1194,11 @@ function QuestSystemByMaps.SyncHUD(PacketName)
     local controlState = GetDwordPacket(PacketName, -1) or 0 
     local isFinished = GetBytePacket(PacketName, -1) or 0
     
+    -- Guardamos el estado puro (0=Incomp, 1=Listo, 2=Remoto)
+    QuestSystemByMaps.HUD_Data.State = controlState 
+    -- Mantenemos CanCollect por compatibilidad de otras funciones (1 o 2 cuentan como "objetivos de bicho listos")
+    QuestSystemByMaps.HUD_Data.CanCollect = (controlState >= 1 and 1 or 0)
+    
     -- Si la ID es 0, significa que no hay misión activa: apagamos HUD
     if qid == 0 then
         QuestSystemByMapsHUDVisible = 0
@@ -1169,8 +1208,6 @@ function QuestSystemByMaps.SyncHUD(PacketName)
 
     -- 4. GUARDAR PROGRESO PARA EL DIBUJO DEL HUD
     QuestSystemByMaps.HUD_ID = qid
-    -- Si el estado es 1 (Completo) o 2 (Remoto), el HUD se mantiene activo
-    QuestSystemByMaps.HUD_Data.CanCollect = (controlState >= 1 and 1 or 0)
 
     -- Leemos los 9 slots de Monstruos
     for i = 1, 9 do 
@@ -1354,7 +1391,7 @@ function QuestSystemByMaps.RenderMonsterHUD()
     
     local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid]
 
-    -- Validación de terminación (Usando solo datos del Server para evitar desincronización)
+    -- Validación de terminación
     local allItemsDone = true
     if itemReqList then
         for idx, it in ipairs(itemReqList) do
@@ -1363,6 +1400,8 @@ function QuestSystemByMaps.RenderMonsterHUD()
         end
     end
     
+    -- Recuperamos el estado enviado por el servidor (0=Inc, 1=Listo, 2=Remoto)
+    local state = QuestSystemByMaps.HUD_Data.State or 0
     local monsterDone = (QuestSystemByMaps.HUD_Data and QuestSystemByMaps.HUD_Data.CanCollect == 1)
     local canCollect = monsterDone and allItemsDone
 
@@ -1377,7 +1416,6 @@ function QuestSystemByMaps.RenderMonsterHUD()
     local bgX, bgY = startX - (padding / 2), startY - 22
 
     -- 4. RENDERIZADO DEL CONTENEDOR (Fondo y Bordes)
-
     EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
     glColor4f(0.0, 0.0, 0.0, 0.6); DrawBar(bgX, bgY, bgW, bgH); EndDrawBar()
     glColor3f(1.0, 1.0, 1.0)
@@ -1386,15 +1424,26 @@ function QuestSystemByMaps.RenderMonsterHUD()
     RenderImage(31342, bgX - 4, bgY + bgH - 8, 14, 14); RenderImage(31343, bgX + bgW - 9, bgY + bgH - 8, 14, 14)
     for i = (bgX + 10), (bgX + bgW - 9), 1 do RenderImage(31344, i, bgY - 3, 1, 14); RenderImage(31345, i, bgY + bgH - 8, 1, 14) end
     for i = (bgY + 11), (bgY + bgH - 8), 1 do RenderImage(31346, bgX - 4, i, 14, 1); RenderImage(31347, bgX + bgW - 9, i, 14, 1) end
-	
+    
     -- 5. TEXTOS
     SetFontType(1); SetTextBg(0, 0, 0, 0)
     SetTextColor(255, 0, 255, 255); RenderText3(startX, startY - 15, "Quest System", hudWidth, 1)
 
-    if canCollect then
-        SetTextColor(0, 255, 0, 255); RenderText3(startX, startY, "¡Vuelve al NPC!", hudWidth, 1)
+    -- [NUEVA LÓGICA DE MENSAJE DINÁMICO]
+    if state == 2 then
+        -- Misión Remota: El jugador está en otro mapa
+        local qMap = QuestSystemByMaps.CurrentMapID or 0
+        local nameMap = QuestSystemByMaps.MapNames[qMap] or ("Mapa " .. qMap)
+        SetTextColor(255, 140, 0, 255) -- Naranja (Atención)
+        RenderText3(startX, startY, "Vuelve a " .. nameMap, hudWidth, 1)
+    elseif canCollect then
+        -- Misión lista para entregar en el mapa actual
+        SetTextColor(0, 255, 0, 255) -- Verde
+        RenderText3(startX, startY, "¡Vuelve al NPC!", hudWidth, 1)
     else
-        SetTextColor(255, 200, 50, 255); RenderText3(startX, startY, "Objetivos:", hudWidth, 1)
+        -- Misión en curso en el mapa actual
+        SetTextColor(255, 200, 50, 255) -- Amarillo/Naranja
+        RenderText3(startX, startY, "Objetivos:", hudWidth, 1)
     end
 
     local line = 1
