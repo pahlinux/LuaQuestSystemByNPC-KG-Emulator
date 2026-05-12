@@ -1070,16 +1070,30 @@ function QuestSystemByMaps.HandleQuestDrop(player, monster)
     local mClass = monster:getClass()
     local drop = QUEST_SYSTEM_MAPS_DROP[mClass]
 
+    -- 1. Si el bicho no está en la tabla de drops, salimos
     if not drop then return end
 
     local playerQid = player:getCacheInt("QuestSystemByMapsIdentification") or 0
+    
+    -- 2. Validar que el jugador tenga la misión correcta activa
     if playerQid ~= drop.qid then return end
 
-    -- --- NUEVO BLOQUE DE SEGURIDAD ---
+    -- [NUEVO BLOQUE DE SEGURIDAD: VALIDACIÓN DE MAPA]
+    -- Obtenemos el mapa donde murió el monstruo y el mapa dueño de la misión
+    local monsterMap = monster:getMapNumber()
+    local questMap = player:getCacheInt("QuestSystemByMapsMapNumber") or -1
+
+    -- Si el mapa del bicho no coincide con el mapa de la misión, abortamos el drop
+    if questMap ~= -1 and monsterMap ~= questMap then
+        -- LogAddC(2, string.format("[QS-Drop-Block] %s mató bicho %d en mapa %d, pero la quest es del mapa %d", player:getName(), mClass, monsterMap, questMap))
+        return 
+    end
+    -- ----------------------------------------------
+
+    -- 3. BLOQUE DE SEGURIDAD: Cantidad máxima de ítems
     -- Buscamos cuántos pide la misión exactamente para este ítem
     local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
-    local map_id = player:getMapNumber()
-    local key = string.format("%d_%d_%d", npc_id, map_id, playerQid)
+    local key = string.format("%d_%d_%d", npc_id, monsterMap, playerQid)
     local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[playerQid]
 
     if itemReqList then
@@ -1095,16 +1109,14 @@ function QuestSystemByMaps.HandleQuestDrop(player, monster)
             end
         end
     end
-    -- --------------------------------
 
-    -- Si pasó el filtro anterior, calculamos probabilidad y dropeamos
+    -- 4. PROBABILIDAD Y DROP
     if math.random(1, 100) <= drop.rate then
         local aIndex = player:getIndex()
-        local map = player:getMapNumber()
         local x, y = monster:getX(), monster:getY()
         local itemID = GET_ITEM(drop.s, drop.i)
 
-        CreateItemMap(aIndex, map, x, y, itemID, drop.lvl, 0, 0, 0, 0, 0, 0, 0, 0)
+        CreateItemMap(aIndex, monsterMap, x, y, itemID, drop.lvl, 0, 0, 0, 0, 0, 0, 0, 0)
         SendMessage("[Quest] ¡Has encontrado un objeto de misión!", aIndex, 1)
     end
 end
