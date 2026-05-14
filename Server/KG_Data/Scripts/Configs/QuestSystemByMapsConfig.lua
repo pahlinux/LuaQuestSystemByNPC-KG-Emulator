@@ -240,7 +240,7 @@ QUEST_SYSTEM_MAPS_REWARD_EXP[ KEY_KT ] = {
 ----------------
 
 ---------------------------------------------------------
--- CONFIGURACIÓN DE DROPS PARA MISIONES
+-- CONFIGURACIÓN DE DROPS PARA MISIONES (Solo Server)
 ---------------------------------------------------------
 -- [MonsterIndex] = { s = Seccion, i = Index, lvl = Nivel, rate = %, qid = ID_Quest }
 QUEST_SYSTEM_MAPS_DROP = {
