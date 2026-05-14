@@ -1140,7 +1140,7 @@ function QuestSystemByMaps.HandleQuestDrop(player, monster)
         local itemID = GET_ITEM(drop.s, drop.i)
 
         CreateItemMap(aIndex, monsterMap, x, y, itemID, drop.lvl, 0, 0, 0, 0, 0, 0, 0, 0)
-        SendMessage("[Quest] ¡Has encontrado un objeto de misión!", aIndex, 1)
+        --SendMessage("[Quest] ¡Has encontrado un objeto de misión!", aIndex, 1)
     end
 end
 
