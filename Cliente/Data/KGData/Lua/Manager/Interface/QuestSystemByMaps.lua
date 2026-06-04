@@ -354,6 +354,7 @@ local QuestSystemByMapsInfoItensCount = {}
 local QuestSystemByMapsFinishedQuest = 0
 local lastAccountName = "" -- Variable para rastrear el cambio de cuenta
 local QuestSystemByMapsPlayerStats = {}
+QuestSystemByMaps.ShowAbandonConfirm = false
 QuestSystemByMaps.IsLoading = false
 QuestSystemByMapsCanStart = false
 local QuestSystemByMapsVisible = 0
@@ -429,8 +430,11 @@ function QuestSystemByMaps.Render()
     -- IMPORTANTE: La animación va PRIMERO para que no la tape nada
     QuestSystemByMaps.RenderFinishNotification()
 
-    -- Luego lo demás
+    -- Luego lo demás (Ventana principal de Quests)
     QuestSystemByMaps.RenderQuest()
+
+    -- [ACÁ VA] Dibujamos la confirmación por encima de la ventana principal
+    QuestSystemByMaps.RenderAbandonConfirm()
 
     -- Si la ventana está abierta, no limpiamos el blend todavía
     if QuestSystemByMapsVisible == 1 then return end
@@ -459,29 +463,35 @@ end
 
 function QuestSystemByMaps.RenderFrame()
     local x, y = QuestSystemByMaps.GetCenterPos()
-    local WinW, WinH = 250, 270
     m_Pos.x, m_Pos.y = x, y 
 
-    -- [ FONDO Y BORDES ]
     EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
-    glColor4f(0.0, 0.0, 0.0, 0.8); DrawBar(x - 4, y - 3, WinW + 7, WinH + 5); EndDrawBar()
-    glColor3f(1.0, 1.0, 1.0)
-    RenderImage(31340, x - 4, y - 3, 14, 14)
-    RenderImage(31341, x + WinW - 9, y - 3, 14, 14)
-    RenderImage(31342, x - 4, y + WinH - 8, 14, 14)
-    RenderImage(31343, x + WinW - 9, y + WinH - 8, 14, 14)
-    for i = (x + 10), (x + WinW - 9), 1 do RenderImage(31344, i, y - 3, 1, 14); RenderImage(31345, i, y + WinH - 8, 1, 14) end
-    for i = (y + 11), (y + WinH - 8), 1 do RenderImage(31346, x - 4, i, 14, 1); RenderImage(31347, x + WinW - 9, i, 14, 1) end
-
+    
+    -- 1. Fondo Oscuro Principal
+    glColor4f(0.0, 0.0, 0.0, 0.85) -- 85% opacidad para que se vea apenas el juego de fondo
+    DrawBar(x, y, WinW, WinH)
+    
+    -- 2. Marco perimetral (Reemplaza las imágenes 40024-40029)
+    -- El color está en gris plomo (0.3, 0.3, 0.3). dorado (0.8, 0.7, 0.2)
+    glColor4f(0.823, 0.411, 0.117, 1.0) 
+    DrawBar(x - 1, y - 1, WinW + 2, 1)    -- Línea Superior
+    DrawBar(x - 1, y + WinH, WinW + 2, 1) -- Línea Inferior
+    DrawBar(x - 1, y, 1, WinH)            -- Línea Izquierda
+    DrawBar(x + WinW, y, 1, WinH)         -- Línea Derecha
+    EndDrawBar()
+    
+    glColor3f(1.0, 1.0, 1.0) -- Reseteamos color de brocha a blanco puro
+    
     -- Botón de salida (X)
     local closeX, closeY = x + WinW - 25, y + 10
-    SetFontType(1) -- Aseguramos negrita para la X también
+    SetFontType(1) 
+    SetTextBg(0, 0, 0, 0) -- Aseguramos fondo transparente para la X
     if MousePosX() >= closeX and MousePosX() <= closeX + 15 and MousePosY() >= closeY and MousePosY() <= closeY + 15 then
         SetTextColor(255, 50, 50, 255)
     else
         SetTextColor(200, 200, 200, 255)
     end
-    RenderText3(closeX, closeY, "X", 15, 3)
+    RenderText3(closeX, closeY, "❎", 15, 3)
 
     if QuestSystemByMaps.IsLoading then DisableAlphaBlend(); return end
 
@@ -492,14 +502,13 @@ function QuestSystemByMaps.RenderFrame()
 
     if QuestSystemByMaps.OpenedByPlayer == 1 or canCollectState == 2 or QuestSystemByMapsFinishedQuest == 1 or hasActiveID then
         local btnText = ""
-        local subText = "" -- [NUEVO] Variable para la segunda línea
+        local subText = "" 
         local isClickable = true
 
         if QuestSystemByMapsFinishedQuest == 1 then
             btnText = "CONTINUAR"
         elseif canCollectState == 2 then
             btnText = "MISIÓN EN CURSO"
-            -- [NUEVO] Agregamos el nombre del mapa debajo
             local qMap = QuestSystemByMaps.CurrentMapID or 0
             local mapName = QuestSystemByMaps.MapNames[qMap] or ("Mapa " .. qMap)
             subText = "(Vuelve a " .. mapName .. ")"
@@ -516,28 +525,28 @@ function QuestSystemByMaps.RenderFrame()
         end
 
         local actionX, actionY = x, y + WinH - 32
-        
-        -- Si hay una segunda línea de texto, subimos un poco el texto principal para que quepan ambos
         local textY = (subText ~= "") and (actionY - 6) or actionY
 
         local isHoverAction = MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= actionY - 5 and MousePosY() <= actionY + 15
         
         if not isClickable then 
-            SetTextColor(80, 80, 80, 255) -- Gris oscuro (Bloqueado)
+            SetTextColor(80, 80, 80, 255) 
         elseif isHoverAction then 
-            SetTextColor(255, 255, 100, 255) -- Amarillo (Hover)
+            SetTextColor(255, 255, 100, 255) 
         else 
-            SetTextColor(0, 250, 154, 255) -- Verde menta original (Normal)
+            SetTextColor(0, 250, 154, 255) 
         end
 
+        -- Forzamos al motor a limpiar el fondo antes de renderizar las etiquetas del botón
         SetFontType(1)
+        SetTextBg(0, 0, 0, 0) 
         
-        -- Renderizamos el texto principal ("MISIÓN EN CURSO", "START", etc)
+        -- Renderizamos el texto principal
         RenderText3(actionX, textY, btnText, WinW, 3)
 
-        -- [NUEVO] Renderizamos la segunda línea solo si existe (El mapa)
+        -- Renderizamos la segunda línea solo si existe (El mapa)
         if subText ~= "" then
-            SetTextColor(255, 140, 0, 255) -- Naranja para que llame la atención a dónde ir
+            SetTextColor(255, 140, 0, 255) 
             RenderText3(actionX, textY + 12, subText, WinW, 3)
         end
     end
@@ -713,8 +722,8 @@ function QuestSystemByMaps.RenderTextRequirements(questInfo)
                 RenderText3(x, m_Y + addY, string.format("[!] %s: %d ✔️", name, reqQty), WinW, 3)
             else 
                 -- COLOR: Blanco 
-                SetTextColor(128, 0, 128, 255) 
-                RenderText3(x, m_Y + addY, string.format("[!] %s: %d/%d", name, haveQty, reqQty), WinW, 3)
+                SetTextColor(255, 20, 147, 255) 
+                RenderText3(x, m_Y + addY, string.format("❎ %s: %d/%d", name, haveQty, reqQty), WinW, 3)
             end
             addY = addY + 11
         end
@@ -811,8 +820,94 @@ function QuestSystemByMaps.RenderTextReward(questInfo, offsetY)
 end
 
 function QuestSystemByMaps.UpdateMouse()
-    if QuestSystemByMapsVisible ~= 1 then return 0 end
     if QuestSystemByMaps.IsLoading then return 1 end 
+    
+    local MouseX, MouseY = MousePosX(), MousePosY()
+
+    -- ===================================================================== --
+    -- PRIORIDAD 1: VENTANA EMERGENTE DE ABANDONAR QUEST
+    -- ===================================================================== --
+    if QuestSystemByMaps.ShowAbandonConfirm then
+        local WinW, WinH = 180, 80
+        local x = (640 / 2) - (WinW / 2) + ReturnWideScreenX()
+        local y = (480 / 2) - (WinH / 2)
+        local btnYesY = y + 55
+        
+        -- Bloqueamos el click al piso para que el PJ no camine
+        if type(DisableClickClient) == "function" then DisableClickClient() end
+        if type(MouseLButtonPush) == "function" then MouseLButtonPush(0) end
+
+        -- Bloqueo de ráfaga de clicks
+        if QuestSystemByMaps.ClickLock then
+            if CheckPressedKey(Keys.LButton) == 0 then QuestSystemByMaps.ClickLock = false end
+            return 1 
+        end
+
+        if CheckPressedKey(Keys.LButton) == 1 then
+            -- Click en YES
+            if MouseX >= x + 20 and MouseX <= x + 80 and MouseY >= btnYesY and MouseY <= btnYesY + 15 then
+                QuestSystemByMaps.ShowAbandonConfirm = false
+                
+                -- MANDAMOS EL PAQUETE DE ABANDONO AL SERVIDOR
+                local packetStr = string.format("QuestAbandon_%s", UserGetName())
+                
+                CreatePacket(packetStr, QUEST_SYSTEM_MAPS_PACKET)
+                SetBytePacket(packetStr, 3) 
+                SetDwordPacket(packetStr, QuestSystemByMaps.HUD_ID or 0) 
+                SendPacket(packetStr)
+                ClearPacket(packetStr)
+                
+                -- Limpiamos el HUD localmente de inmediato
+                QuestSystemByMaps.HUD_ID = 0
+                QuestSystemByMaps.HUD_Data = {}
+                QuestSystemByMapsHUDVisible = 0 -- Apagamos el flag del HUD para que no parpadee
+                QuestSystemByMaps.ClickLock = true
+                return 1
+            end
+            
+            -- Click en NO
+            if MouseX >= x + 100 and MouseX <= x + 160 and MouseY >= btnYesY and MouseY <= btnYesY + 15 then
+                QuestSystemByMaps.ShowAbandonConfirm = false
+                QuestSystemByMaps.ClickLock = true
+                return 1
+            end
+        end
+        return 1 -- Interceptamos todos los clics mientras esté abierta
+    end
+
+    -- ===================================================================== --
+    -- PRIORIDAD 2: CLICK EN LA 'X' DEL HUD FLOTANTE
+    -- ===================================================================== --
+    -- [CORREGIDO] Blindaje anti-nil con (QuestSystemByMaps.HUD_ID or 0)
+    if (QuestSystemByMaps.HUD_ID or 0) > 0 and QuestSystemByMapsVisible ~= 1 and not QuestSystemByMaps.IsAnyWindowOpen() then
+        local hudWidth = 160
+        local startX = (720 - hudWidth - 42) + (ReturnWideScreenX() * 2)
+        local startY = 180 
+        
+        local btnX_X = startX + 110
+        local btnX_Y = startY + 3
+        
+        if MouseX >= btnX_X and MouseX <= btnX_X + 12 and MouseY >= btnX_Y and MouseY <= btnX_Y + 12 then
+            if type(DisableClickClient) == "function" then DisableClickClient() end
+            if type(MouseLButtonPush) == "function" then MouseLButtonPush(0) end
+
+            if QuestSystemByMaps.ClickLock then
+                if CheckPressedKey(Keys.LButton) == 0 then QuestSystemByMaps.ClickLock = false end
+                return 1 
+            end
+
+            if CheckPressedKey(Keys.LButton) == 1 then
+                QuestSystemByMaps.ShowAbandonConfirm = true
+                QuestSystemByMaps.ClickLock = true
+                return 1
+            end
+        end
+    end
+
+    -- ===================================================================== --
+    -- PRIORIDAD 3: VENTANA PRINCIPAL DE MISIONES
+    -- ===================================================================== --
+    if QuestSystemByMapsVisible ~= 1 then return 0 end
     
     if QuestSystemByMaps.IsMouseOver() then
         if type(DisableClickClient) == "function" then DisableClickClient() end
@@ -823,7 +918,6 @@ function QuestSystemByMaps.UpdateMouse()
             return 1 
         end
 
-        local MouseX, MouseY = MousePosX(), MousePosY()
         local x, y = QuestSystemByMaps.GetCenterPos()
 
         -- 1. BOTÓN CERRAR (X)
@@ -848,12 +942,13 @@ function QuestSystemByMaps.UpdateMouse()
                         QuestSystemByMapsInfo = {}
                         for k, v in pairs(q) do QuestSystemByMapsInfo[k] = v end
                         
-                        if QuestSystemByMaps.HUD_ID > 0 and QuestSystemByMaps.CurrentQuestID == QuestSystemByMaps.HUD_ID then
+                        -- [CORREGIDO] Más blindaje anti-nil
+                        if (QuestSystemByMaps.HUD_ID or 0) > 0 and QuestSystemByMaps.CurrentQuestID == QuestSystemByMaps.HUD_ID then
                             QuestSystemByMapsInfo.Started = 1
                             QuestSystemByMapsInfo.CanCollectLocal = tonumber(QuestSystemByMaps.HUD_Data.CanCollect or 0)
                         else
                             QuestSystemByMapsInfo.Started = 0
-                            QuestSystemByMapsInfo.CanCollectLocal = (QuestSystemByMaps.HUD_ID > 0) and 2 or 0
+                            QuestSystemByMapsInfo.CanCollectLocal = ((QuestSystemByMaps.HUD_ID or 0) > 0) and 2 or 0
                         end
                         QuestSystemByMaps.ClickLock = true
                         return 1 
@@ -872,12 +967,8 @@ function QuestSystemByMaps.UpdateMouse()
                     elseif canCollect == 1 then
                         QuestSystemByMaps.GetReward()
                     elseif tonumber(QuestSystemByMapsInfo and QuestSystemByMapsInfo.Started or 0) == 0 then
-                        -- BLOQUEO TOTAL: Si no puede empezar, ni siquiera enviamos el paquete
                         if QuestSystemByMapsCanStart then
                             QuestSystemByMaps.StartQuest(QuestSystemByMapsInfo.QuestIdentification)
-                        else
-                            -- Opcional: Sonido de error o mensaje local
-                            -- LogAddC(2, "No cumples los requisitos para empezar.")
                         end
                     end
                     QuestSystemByMaps.ClickLock = true
@@ -1363,130 +1454,191 @@ function QuestSystemByMaps.Protocol(Packet, PacketName)
     end
 end
 
+function QuestSystemByMaps.IsAnyWindowOpen()
+    local windows = {
+        UIInventory, UIFriendList, UIParty, UIQuest, UIGuild, UITrade,
+        UIWarehouse, UIChaosBox, UICommandWindow, UIPetInfo, UIShop, UIStore,
+        UIOtherStore, UICharacter, UIOptions, UIHelp, UIFastDial, UISkillTree,
+        UIFullMap, UINPC_Dialog, UIGensInfo, UIExpandInventory, UIExpandWarehouse, UIMuHelper
+    }
+    for _, winID in ipairs(windows) do
+        if CheckWindowOpen(winID) == 1 then return true end
+    end
+    return false
+end
+
 function QuestSystemByMaps.RenderMonsterHUD()
-    -- 1. VALIDACIONES DE VISIBILIDAD
+    -- 1. VALIDACIONES
     local uname = UserGetName()
     local always = QuestSystemByMaps.AlwaysContinue and QuestSystemByMaps.AlwaysContinue[uname]
     if always and always.date == os.date("%Y-%m-%d") then return end
 
     local qid = QuestSystemByMaps.HUD_ID or 0
-    if QuestSystemByMapsVisible == 1 or QuestSystemByMapsHUDVisible == 0 or qid <= 0 then
+    if QuestSystemByMapsVisible == 1 or QuestSystemByMapsHUDVisible == 0 or qid <= 0 or QuestSystemByMaps.IsAnyWindowOpen() then
         return
     end
-
-    -- Validación de ventanas del juego abiertas
-    if type(CheckWindowOpen) == "function" then
-        local okMove = (CheckWindowOpen(UIMoveList) == 1)
-        local okParty = (CheckWindowOpen(UIParty) == 1)
-        local okChat  = (CheckWindowOpen(UIChatWindow) == 1)
-        if not (okMove or okParty or okChat) then 
-            if Utils.CheckWindow() then return end
-        end
-    end
-
+    
     -- 2. RECUPERACIÓN DE DATOS
     local key = string.format("%d_%d_%d", QuestSystemByMapsCurrentNPC or 0, QuestSystemByMaps.CurrentMapID or 0, qid)
     local monsterList = QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[qid]
     if not monsterList then return end
     
     local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[key] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[qid]
-
-    -- Validación de terminación
-    local allItemsDone = true
-    if itemReqList then
-        for idx, it in ipairs(itemReqList) do
-            local cur = (QuestSystemByMaps.HUD_Data.Items and QuestSystemByMaps.HUD_Data.Items[idx]) or 0
-            if cur < (it.Quantity or 1) then allItemsDone = false; break end
-        end
-    end
     
-    -- Recuperamos el estado enviado por el servidor (0=Inc, 1=Listo, 2=Remoto)
-    local state = QuestSystemByMaps.HUD_Data.State or 0
-    local monsterDone = (QuestSystemByMaps.HUD_Data and QuestSystemByMaps.HUD_Data.CanCollect == 1)
-    local canCollect = monsterDone and allItemsDone
-
-    -- 3. DIMENSIONES
-    local hudWidth, rightMargin, padding = 110, 100, 12
-    local startX = (720 - hudWidth - rightMargin) + (ReturnWideScreenX() * 2)
-    local startY = 320
-
-    local totalLines = #monsterList + (itemReqList and #itemReqList or 0)
-    local bgH = (totalLines * 13) + 40
-    local bgW = hudWidth + padding
-    local bgX, bgY = startX - (padding / 2), startY - 22
-
-    -- 4. RENDERIZADO DEL CONTENEDOR (Fondo y Bordes)
+    -- 3. DIMENSIONES MAESTRAS
+    local hudWidth = 160
+    local rowH = 14 
+    local startX = (720 - hudWidth - 42) + (ReturnWideScreenX() * 2)
+    local startY = 180 
+    
     EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
-    glColor4f(0.0, 0.0, 0.0, 0.6); DrawBar(bgX, bgY, bgW, bgH); EndDrawBar()
-    glColor3f(1.0, 1.0, 1.0)
-
-    RenderImage(31340, bgX - 4, bgY - 3, 14, 14); RenderImage(31341, bgX + bgW - 9, bgY - 3, 14, 14)
-    RenderImage(31342, bgX - 4, bgY + bgH - 8, 14, 14); RenderImage(31343, bgX + bgW - 9, bgY + bgH - 8, 14, 14)
-    for i = (bgX + 10), (bgX + bgW - 9), 1 do RenderImage(31344, i, bgY - 3, 1, 14); RenderImage(31345, i, bgY + bgH - 8, 1, 14) end
-    for i = (bgY + 11), (bgY + bgH - 8), 1 do RenderImage(31346, bgX - 4, i, 14, 1); RenderImage(31347, bgX + bgW - 9, i, 14, 1) end
     
-    -- 5. TEXTOS
+    -- =========================================================
+    -- TÍTULO: Fondo, Borde y Textos
+    -- =========================================================
+    glColor4f(1.0, 1.0, 1.0, 0.3) --Blanco 0.3 es la transparencia (30% opaco)
+    DrawBar(startX, startY, hudWidth, rowH)
+    
+    glColor4f(0.2, 0.2, 0.2, 1.0)
+    DrawBar(startX - 1, startY - 1, hudWidth + 2, 1)
+    DrawBar(startX - 1, startY + rowH, hudWidth + 2, 1)
+    DrawBar(startX - 1, startY, 1, rowH)
+    DrawBar(startX + hudWidth, startY, 1, rowH)
+    EndDrawBar() 
+    
+    glColor3f(1.0, 1.0, 1.0)
     SetFontType(1); SetTextBg(0, 0, 0, 0)
-    SetTextColor(255, 0, 255, 255); RenderText3(startX, startY - 15, "Quest System", hudWidth, 1)
+    
+    -- Símbolo Izquierda ▼ (Posición: X + 5)
+    SetTextColor(255, 255, 255, 255)
+    RenderText3(startX + 5, startY + 2, "▼", 15, 1)
 
-    -- [NUEVA LÓGICA DE MENSAJE DINÁMICO]
-    if state == 2 then
-        -- Misión Remota: El jugador está en otro mapa
-        local qMap = QuestSystemByMaps.CurrentMapID or 0
-        local nameMap = QuestSystemByMaps.MapNames[qMap] or ("Mapa " .. qMap)
-        SetTextColor(255, 140, 0, 255) -- Naranja (Atención)
-        RenderText3(startX, startY, "Vuelve a " .. nameMap, hudWidth, 1)
-    elseif canCollect then
-        -- Misión lista para entregar en el mapa actual
-        SetTextColor(0, 255, 0, 255) -- Verde
-        RenderText3(startX, startY, "¡Vuelve al NPC!", hudWidth, 1)
-    else
-        -- Misión en curso en el mapa actual
-        SetTextColor(255, 200, 50, 255) -- Amarillo/Naranja
-        RenderText3(startX, startY, "Objetivos:", hudWidth, 1)
+    -- Texto Medio (Posición: X + 22, alineado a la izquierda para que respete su lugar)
+    SetTextColor(255, 215, 0, 255) --Amarillo
+	RenderText3(startX + 22, startY + 2, "Quest System", 100, 1)
+
+    -- Botón "X" a la Derecha (Traído a X + 140 para que sea 100% visible)
+    local btnX_X = startX + 110
+    local btnX_Y = startY + 2
+	SetTextColor(150, 150, 150, 255) -- Color Gris metalizado para el divisor
+    RenderText3(btnX_X - 8, btnX_Y, "║", 15, 1)
+	local isHoverX = MousePosX() >= btnX_X and MousePosX() <= btnX_X + 12 and MousePosY() >= btnX_Y and MousePosY() <= btnX_Y + 12
+    
+    if isHoverX then 
+        SetTextColor(255, 50, 50, 255) 
+    else 
+        SetTextColor(200, 200, 200, 255) 
     end
+	RenderText3(btnX_X, btnX_Y, "X", 15, 1) 
 
-    local line = 1
+    -- =========================================================
+    -- FILAS: Monstruos e Items
+    -- =========================================================
+    local currentY = startY + rowH + 4
 
-    -- --- DIBUJAR MONSTRUOS ---
-    for idx, mon in ipairs(monsterList) do
-        local cur = (QuestSystemByMaps.HUD_Data.Kills and QuestSystemByMaps.HUD_Data.Kills[idx]) or 0
-        local req = mon.Quantity or 0
+    local function DrawDrawer(text, cur, max)
+        EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
+
+        glColor4f(0.0, 0.0, 0.0, 0.7) 
+        DrawBar(startX, currentY, hudWidth, rowH)
         
-        if cur >= req then 
-            SetTextColor(172, 255, 56, 255) -- Verde Lima
-            RenderText3(startX, startY + (line * 13), string.format("- %s ✔️", mon.MonsterName), hudWidth, 1)
+        glColor4f(0.2, 0.2, 0.2, 1.0) 
+        DrawBar(startX - 1, currentY - 1, hudWidth + 2, 1)
+        DrawBar(startX - 1, currentY + rowH, hudWidth + 2, 1)
+        DrawBar(startX - 1, currentY, 1, rowH)
+        DrawBar(startX + hudWidth, currentY, 1, rowH)
+        EndDrawBar()
+
+        glColor3f(1.0, 1.0, 1.0)
+        SetFontType(0); SetTextBg(0, 0, 0, 0)
+        
+        -- Símbolo Izquierda ► 
+        SetTextColor(200, 200, 200, 255)
+        RenderText3(startX + 5, currentY + 3, "►", 15, 1)
+        
+        -- Empujamos el texto para que arranque después del símbolo
+        local textX = startX + 18 
+        local textWidth = hudWidth - 25
+
+        if cur >= max then
+            SetTextColor(100, 255, 100, 255)
+            RenderText3(textX, currentY + 3, text .. " ✔️", textWidth, 1) -- Verde
         elseif cur > 0 then
-            SetTextColor(255, 140, 0, 255) -- Naranja (Progreso)
-            RenderText3(startX, startY + (line * 13), string.format("- %s: %d/%d", mon.MonsterName, cur, req), hudWidth, 1)
+            SetTextColor(255, 120, 0, 255) --Naranja
+            RenderText3(textX, currentY + 3, text, textWidth, 1)
         else
-            SetTextColor(255, 255, 255, 220) -- Blanco (0)
-            RenderText3(startX, startY + (line * 13), string.format("- %s: %d/%d", mon.MonsterName, cur, req), hudWidth, 1)
+            SetTextColor(255, 255, 255, 255)
+            RenderText3(textX, currentY + 3, text, textWidth, 1) -- Blanco
         end
-        line = line + 1
+        
+        currentY = currentY + rowH + 4 
     end
 
-    -- --- DIBUJAR ÍTEMS ---
+    -- 4. DIBUJAR MONSTRUOS
+    if monsterList then
+        for idx, mon in ipairs(monsterList) do
+            local cur = (QuestSystemByMaps.HUD_Data.Kills and QuestSystemByMaps.HUD_Data.Kills[idx]) or 0
+            local txt = string.format("%s: %d/%d", mon.MonsterName, cur, mon.Quantity)
+            DrawDrawer(txt, cur, mon.Quantity)
+        end
+    end
+
+    -- 5. DIBUJAR ITEMS
     if itemReqList then
         for idx, it in ipairs(itemReqList) do
-            local req = it.Quantity or 0
             local cur = (QuestSystemByMaps.HUD_Data.Items and QuestSystemByMaps.HUD_Data.Items[idx]) or 0
-            local name = it.ItemName or it.Name or GetItemRealName(it.ItemIndex)
-
-            if cur >= req then
-                SetTextColor(127, 255, 212, 255) -- Aqua ✔️
-                RenderText3(startX, startY + (line * 13), string.format("* %s ✔️", name), hudWidth, 1)
-            elseif cur > 0 then
-                SetTextColor(255, 140, 0, 255) -- Naranja (Progreso)
-                RenderText3(startX, startY + (line * 13), string.format("* %s: %d/%d", name, cur, req), hudWidth, 1)
-            else
-                SetTextColor(255, 255, 255, 220) -- Blanco (0)
-                RenderText3(startX, startY + (line * 13), string.format("* %s: %d/%d", name, cur, req), hudWidth, 1)
-            end
-            line = line + 1
+            local name = it.ItemName or GetItemRealName(it.ItemIndex)
+            local txt = string.format("%s: %d/%d", name, cur, it.Quantity)
+            DrawDrawer(txt, cur, it.Quantity)
         end
     end
 
+    DisableBlend(); GLSwitch(); DisableAlphaBlend()
+end
+
+function QuestSystemByMaps.RenderAbandonConfirm()
+    if not QuestSystemByMaps.ShowAbandonConfirm then return end
+    
+    local WinW, WinH = 180, 80
+    local x = (640 / 2) - (WinW / 2) + ReturnWideScreenX()
+    local y = (480 / 2) - (WinH / 2)
+
+    EnableAlphaTest(); EnableAlphaBlend(); SetBlend()
+    
+    -- Fondo Oscuro
+    glColor4f(0.0, 0.0, 0.0, 0.8)
+    DrawBar(x, y, WinW, WinH)
+    
+    -- Borde simple (para no complicar los texturas acá)
+    glColor4f(0.5, 0.0, 0.0, 1.0)
+    DrawBar(x - 1, y - 1, WinW + 2, 1) -- Top
+    DrawBar(x - 1, y + WinH, WinW + 2, 1) -- Bottom
+    DrawBar(x - 1, y, 1, WinH) -- Left
+    DrawBar(x + WinW, y, 1, WinH) -- Right
+    EndDrawBar()
+    
+    glColor3f(1.0, 1.0, 1.0)
+    
+    -- Textos
+    SetFontType(1); SetTextBg(0, 0, 0, 0)
+    SetTextColor(255, 50, 50, 255)
+    RenderText3(x, y + 10, "ABANDON QUEST", WinW, 3)
+    
+    SetFontType(0)
+    SetTextColor(255, 255, 255, 255)
+    RenderText3(x, y + 30, "¿Seguro que deseas abandonar?", WinW, 3)
+    
+    -- Botón YES
+    local btnYesY = y + 55
+    local isHoverYes = MousePosX() >= x + 20 and MousePosX() <= x + 80 and MousePosY() >= btnYesY and MousePosY() <= btnYesY + 15
+    if isHoverYes then SetTextColor(255, 255, 100, 255) else SetTextColor(0, 250, 154, 255) end
+    RenderText3(x + 20, btnYesY, "[ YES ]", 60, 3)
+    
+    -- Botón NO
+    local isHoverNo = MousePosX() >= x + 100 and MousePosX() <= x + 160 and MousePosY() >= btnYesY and MousePosY() <= btnYesY + 15
+    if isHoverNo then SetTextColor(255, 255, 100, 255) else SetTextColor(255, 100, 100, 255) end
+    RenderText3(x + 100, btnYesY, "[ NO ]", 60, 3)
+    
     DisableAlphaBlend()
 end
 
