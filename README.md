@@ -21,3 +21,9 @@ Se agrego item para requisitos de quest.
 Se agrego Drop de item especificos para las quest (solo se Configura en el Config del server, no es necesario en el cliente)
 
 Se agreo una lista con nombres de mapas solo en el Cliente y solo para visual.
+
+04/06 Cliente: 
+
+      Se Actualizaron los render para q ya no use imagenes, tanto en la ventana del NPC y el en HUD de progreso, y se agrego en el HUD la X para abandonar la quest como tambien la ventanita de confirmación.
+
+      Server Se actualizo la funcion para poder abandonar las quest.
