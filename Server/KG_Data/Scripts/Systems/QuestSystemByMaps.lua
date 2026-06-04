@@ -739,16 +739,17 @@ function QuestSystemByMaps.ForceCloseClient(player, npc_id)
 
     local name = player:getName()
     local acc = player:getAccountID()
+    local mapId = player:getMapNumber() -- [CORRECCIÓN] Capturamos el mapa
+    
     -- Usamos el paquete de HUD Update para forzar el cierre visual
     local packetName = string.format("QuestSystemByMapsHUDUpdate_%s", name)
-    
     local function SD(v) return tonumber(v) or 0 end
 
     CreatePacket(packetName, QUEST_SYSTEM_MAPS_PACKET)
 
     -- 1. HEADER CON VALORES NULOS
-    -- Al enviar QuestIdentification = 0 y estadísticas en 0, el cliente no tiene qué dibujar
     SetDwordPacket(packetName, SD(npc_id))
+    SetDwordPacket(packetName, SD(mapId)) -- [CORRECCIÓN CRÍTICA] Faltaba enviar el mapa al cliente
     SetDwordPacket(packetName, 0) -- QuestIdentification
     SetDwordPacket(packetName, 0) -- Level
     SetDwordPacket(packetName, 0) -- Resets
@@ -762,21 +763,13 @@ function QuestSystemByMaps.ForceCloseClient(player, npc_id)
     SetDwordPacket(packetName, 0) -- Kills Globales
 
     -- 2. FLAG DE FINALIZADO EN 0
-    -- Evita que se active el botón de "Continue"
     SetBytePacket(packetName, 0)
 
-    -- 3. RESET DE MONSTRUOS (9 SLOTS)
-    for i = 1, 9 do 
-        SetDwordPacket(packetName, 0) 
-    end
-
-    -- 4. RESET DE ITEMS (10 SLOTS)
-    for i = 1, 10 do 
-        SetDwordPacket(packetName, 0) 
-    end
+    -- 3. RESET DE MONSTRUOS E ITEMS
+    for i = 1, 9 do SetDwordPacket(packetName, 0) end
+    for i = 1, 10 do SetDwordPacket(packetName, 0) end
 
     -- 5. LISTA DE QUESTS VACÍA
-    -- Al enviar 0 misiones, el cliente limpia cualquier lista previa en pantalla
     SetDwordPacket(packetName, 0)
 
     -- ENVÍO Y LOG
@@ -1832,40 +1825,40 @@ function QuestSystemByMaps.AbandonQuest(player, qid_from_client)
 
     local acc = player:getAccountID()
     local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
-    -- Usamos el ID que mandó el cliente, o el de la memoria como respaldo
     local questID = qid_from_client or player:getCacheInt("QuestSystemByMapsIdentification") or 0
     local mapId = player:getMapNumber() 
 
-    -- 1. Limpiar Caché del Personaje (C++)
-    player:clearCacheInt("QuestSystemByMapsIdentification")
-    player:clearCacheInt("QuestSystemByMapsStarted")
-    player:clearCacheInt("QuestSystemByMapsCanCollect")
-    player:clearCacheInt("QuestSystemByMapsStatus")
-    player:clearCacheInt("QuestSystemByMapsKills")
-    for i = 1, 9 do 
-        player:clearCacheInt(string.format("QuestSystemByMapsKillsMonster%d", i)) 
-    end
-
-    -- 2. Actualizar Base de Datos (Eliminamos la misión incompleta)
+    -- 1. Actualizar Base de Datos
     if acc and questID and questID > 0 then
-        -- Hacemos un DELETE solo de las misiones que están en Status=1 (En curso)
+        -- Eliminamos la misión incompleta de la DB
         local where = string.format("AccountID='%s' AND QuestIdentification=%d AND Status=1", acc, questID)
         local q = string.format("DELETE FROM dbo.QUEST_SYSTEM_ACTIVE WHERE %s", where)
-        
-        QuestSystemByMaps.SafeCreateAsync('AbandonQuest_'..acc..'_'..tostring(questID), q, -1, 1)
+        QuestSystemByMaps.SafeCreateAsync('AbandonQuest_'..acc..'_'..tostring(questID), q, -1, 0)
 
-        -- 3. Limpiar Memoria RAM (Lua) buscando en todos los NPCs
+        -- Limpiar Memoria RAM (Lua)
         if QuestSystemByMaps.PlayerActive[acc] then
             for n_id, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
                 if npcs[tostring(questID)] then
                     npcs[tostring(questID)] = nil
-                    LogAddC(2, string.format("QuestSystemByMaps: %s abandonó quest %d en mapa %d (RAM limpia y DB Borrada)", acc, questID, mapId))
+                    LogAddC(2, string.format("QuestSystemByMaps: %s abandonó quest %d en mapa %d", acc, questID, mapId))
                 end
             end
         end
     end
 
-    -- 4. Ocultar el HUD
+    -- 2. Limpiar Caché del Personaje (C++)
+    -- [CORRECCIÓN CRÍTICA] Usamos setCacheInt(0) en lugar de clearCacheInt para evitar que crashee el thread de Lua
+    player:setCacheInt("QuestSystemByMapsIdentification", 0)
+    player:setCacheInt("QuestSystemByMapsStarted", 0)
+    player:setCacheInt("QuestSystemByMapsCanCollect", 0)
+    player:setCacheInt("QuestSystemByMapsStatus", 0)
+    player:setCacheInt("QuestSystemByMapsKills", 0)
+    player:setCacheInt("QuestSystemByMapsNPC", 0)
+    for i = 1, 9 do 
+        player:setCacheInt(string.format("QuestSystemByMapsKillsMonster%d", i), 0) 
+    end
+
+    -- 3. Ocultar el HUD
     QuestSystemByMaps.ForceCloseClient(player, npc_id)
     SendMessage("Has abandonado la misión.", player:getIndex(), 1)
 end
