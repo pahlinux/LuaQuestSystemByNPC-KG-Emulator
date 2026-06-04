@@ -1,4 +1,4 @@
----Quest System Vers. 1.0
+---Quest System 1.0
 -------------------
 ---INICIO CONFIG
 -------------------
