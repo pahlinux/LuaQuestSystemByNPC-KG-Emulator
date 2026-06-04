@@ -1,4 +1,4 @@
--- QuestSystemByMaps.lua (limpio y ordenado)
+-- QuestSystemByMaps.lua 1.0
 -- Soporte multi-quest por cuenta (tabla dbo.QUEST_SYSTEM_ACTIVE)
 
 -- fallbacks / helpers globales
@@ -1140,7 +1140,7 @@ function QuestSystemByMaps.HandleQuestDrop(player, monster)
         local itemID = GET_ITEM(drop.s, drop.i)
 
         CreateItemMap(aIndex, monsterMap, x, y, itemID, drop.lvl, 0, 0, 0, 0, 0, 0, 0, 0)
-        --SendMessage("[Quest] ¡Has encontrado un objeto de misión!", aIndex, 1)
+        SendMessage("[Quest] ¡Has encontrado un objeto de misión!", aIndex, 1)
     end
 end
 
@@ -1524,9 +1524,6 @@ function QuestSystemByMaps.Protocol(aIndex, Packet, PacketName)
 
     local pName = player:getName()
 
-    -- [LOG DE ENTRADA] Detectar cualquier paquete que llegue de este sistema
-    -- LogAddC(2, string.format("QuestSystemByMaps: Packet Recibido [%s] de %s", PacketName, pName))
-
     -- [1] ABRIR NPC / SOLICITAR LISTA
     if string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_OPEN_NAME, pName) == PacketName then
         local mapId_enviado = GetDwordPacket(PacketName, -1) or 0 
@@ -1553,10 +1550,9 @@ function QuestSystemByMaps.Protocol(aIndex, Packet, PacketName)
 
     -- [4] BOTON CONTINUAR / CERRAR
     elseif string.format("%s_%s", QUEST_SYSTEM_MAPS_PACKET_CONTINUE_QUEST_NAME, pName) == PacketName then
+        local acc = player:getAccountID()
         local npc_id = player:getCacheInt("QuestSystemByMapsNPC")
         
-        -- Solo forzamos el cierre del HUD si el jugador NO tiene una misión activa
-        -- Esto evita que el HUD "pestañee" cuando abres el NPC estando terminada la misión
         local hasActive = false
         if QuestSystemByMaps.PlayerActive[acc] then
             for _, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
@@ -1569,12 +1565,20 @@ function QuestSystemByMaps.Protocol(aIndex, Packet, PacketName)
         if not hasActive then
             QuestSystemByMaps.ForceCloseClient(player, npc_id)
         end
-        
         ClearPacket(PacketName)
 
-    -- [NUEVO / REVISIÓN] SI TUVIERAS UN PAQUETE DE HUD UPDATE ENTRANDO
-    -- Generalmente el HUD Update se envía del Servidor -> Cliente (no entra por aquí)
-    -- Pero si tienes una respuesta del cliente, la verías así:
+    -- [5] ABANDONAR QUEST DESDE EL HUD
+    elseif string.find(PacketName, "QuestAbandon_") then
+        local subHeader = GetBytePacket(PacketName, -1)
+        local qid = GetDwordPacket(PacketName, -1)
+        
+        if subHeader == 3 then
+            LogAddC(2, string.format("QuestSystemByMaps: [ABANDON] %s abandona Quest ID %d", pName, qid))
+            QuestSystemByMaps.AbandonQuest(player, qid)
+        end
+        ClearPacket(PacketName)
+
+    -- [6] HUD UPDATE FEEDBACK
     elseif string.find(PacketName, "QuestSystemByMapsHUDUpdate") then
         LogAddC(2, string.format("QuestSystemByMaps: [HUD_SYNC] Recibido feedback de HUD de %s", pName))
     end
@@ -1747,7 +1751,7 @@ function QuestSystemByMaps.PlayerHUDTimer(aIndex)
             -- Sincronizamos DB ByMaps
             local map_id = player:getMapNumber()
             local queryT = string.format(
-                "UPDATE QUEST_SYSTEM_MAPS_ACTIVE SET CanCollect = 1 WHERE AccountID='%s' AND QuestIdentification=%d AND MapNumber=%d",
+                "UPDATE QUEST_SYSTEM_ACTIVE SET CanCollect = 1 WHERE AccountID='%s' AND QuestIdentification=%d AND MapNumber=%d",
                 acc, qid, map_id)
             QuestSystemByMaps.SafeCreateAsync('CanQTimerByMaps', queryT, -1, 0)
 
@@ -1822,45 +1826,48 @@ function QuestSystemByMaps.OpenContinueQuest(player)
     ClearPacket(packetString)
 end
 
-function QuestSystemByMaps.AbandonQuest(player)
+function QuestSystemByMaps.AbandonQuest(player, qid_from_client)
     if type(player) == "number" then player = User.new(player) end
     if not player then return end
 
     local acc = player:getAccountID()
     local npc_id = player:getCacheInt("QuestSystemByMapsNPC") or 0
-    local questID = player:getCacheInt("QuestSystemByMapsIdentification") or 0
-    local mapId = player:getMapNumber() -- [NUEVO] Obtener mapa actual
+    -- Usamos el ID que mandó el cliente, o el de la memoria como respaldo
+    local questID = qid_from_client or player:getCacheInt("QuestSystemByMapsIdentification") or 0
+    local mapId = player:getMapNumber() 
 
     -- 1. Limpiar Caché del Personaje (C++)
     player:clearCacheInt("QuestSystemByMapsIdentification")
     player:clearCacheInt("QuestSystemByMapsStarted")
     player:clearCacheInt("QuestSystemByMapsCanCollect")
+    player:clearCacheInt("QuestSystemByMapsStatus")
     player:clearCacheInt("QuestSystemByMapsKills")
     for i = 1, 9 do 
         player:clearCacheInt(string.format("QuestSystemByMapsKillsMonster%d", i)) 
     end
 
-    -- 2. Actualizar Base de Datos (Con MapNumber)
+    -- 2. Actualizar Base de Datos (Eliminamos la misión incompleta)
     if acc and questID and questID > 0 then
-        -- [ACTUALIZADO] Añadimos MapNumber al WHERE para ser precisos
-        local where = string.format("AccountID='%s' AND NPC=%d AND QuestIdentification=%d AND MapNumber=%d", 
-            acc, npc_id, questID, mapId)
-        
-        -- En lugar de solo UPDATE, podrías usar un DELETE si prefieres que la misión desaparezca, 
-        -- pero el UPDATE a 0 está bien si quieres mantener el registro.
-        local q = string.format("UPDATE dbo.QUEST_SYSTEM_ACTIVE SET Finished = 0, Kills = 0, KillsMonster1=0,KillsMonster2=0,KillsMonster3=0,KillsMonster4=0,KillsMonster5=0,KillsMonster6=0,KillsMonster7=0,KillsMonster8=0,KillsMonster9=0 WHERE %s", where)
+        -- Hacemos un DELETE solo de las misiones que están en Status=1 (En curso)
+        local where = string.format("AccountID='%s' AND QuestIdentification=%d AND Status=1", acc, questID)
+        local q = string.format("DELETE FROM dbo.QUEST_SYSTEM_ACTIVE WHERE %s", where)
         
         QuestSystemByMaps.SafeCreateAsync('AbandonQuest_'..acc..'_'..tostring(questID), q, -1, 1)
 
-        -- 3. Limpiar Memoria RAM (Lua)
-        if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] then
-            QuestSystemByMaps.PlayerActive[acc][npc_id][tostring(questID)] = nil
-            LogAddC(2, string.format("QuestSystemByMaps: %s abandonó quest %d en mapa %d (RAM limpia)", acc, questID, mapId))
+        -- 3. Limpiar Memoria RAM (Lua) buscando en todos los NPCs
+        if QuestSystemByMaps.PlayerActive[acc] then
+            for n_id, npcs in pairs(QuestSystemByMaps.PlayerActive[acc]) do
+                if npcs[tostring(questID)] then
+                    npcs[tostring(questID)] = nil
+                    LogAddC(2, string.format("QuestSystemByMaps: %s abandonó quest %d en mapa %d (RAM limpia y DB Borrada)", acc, questID, mapId))
+                end
+            end
         end
     end
 
-    -- 4. Refrescar la ventana del NPC
-    QuestSystemByMaps.OpenQuest(player, npc_id)
+    -- 4. Ocultar el HUD
+    QuestSystemByMaps.ForceCloseClient(player, npc_id)
+    SendMessage("Has abandonado la misión.", player:getIndex(), 1)
 end
 
 QuestSystemByMaps.LastCheckDate = os.date("%Y-%m-%d")
