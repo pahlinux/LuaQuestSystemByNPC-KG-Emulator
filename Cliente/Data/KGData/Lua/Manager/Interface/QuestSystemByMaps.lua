@@ -30,7 +30,8 @@ QUEST_DEBUG_MODE = false -- Cambiá a true cuando quieras ver los logs
 -- Lista de NPCs permitidos para abrir el Quest System
 -- Puedes añadir todos los que quieras: { [748] = true, [746] = true, [500] = true }
 QUEST_SYSTEM_MAPS_ALLOWED_NPCS = { 
-    [748] = true, 
+    [748] = true,
+	[741] = true,	
 }
 -- Por si acaso, definimos esta para evitar errores de nil
 QUEST_SYSTEM_MAPS_NPC_CLASS = 0
@@ -63,7 +64,14 @@ QUEST_SYSTEM_BY_MAP[2] = {
 QUEST_SYSTEM_BY_MAP[37] = {
     { QuestIdentification = 300, QuestName = 'Kill Monster Kanturu', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0, Vip = 0, Kills = 0, Validity = '01/06/2036' },
 }
-
+-- MAPA 84: ARKANIA (Mision dentro de Arkania)
+QUEST_SYSTEM_BY_MAP[84] = {
+    { QuestIdentification = 800, QuestName = 'Survival Arkania Quest', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0, Vip = 0, Kills = 0, Validity = '01/06/2036' },
+}
+-- MAPA 40: Silent (Mision dentro del evento Silent)
+QUEST_SYSTEM_BY_MAP[40] = {
+    { QuestIdentification = 400, QuestName = 'Survival Silent Quest', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0, Vip = 0, Kills = 0, Validity = '01/06/2036' },
+}
 ---------------------------------------------------------
 -- COMPATIBILIDAD Y LLAVES
 ---------------------------------------------------------
@@ -87,9 +95,11 @@ QUEST_SYSTEM_MAPS_REWARD_BUFF = {}
 QUEST_SYSTEM_MAPS_REWARD_EXP = {}
 QUEST_SYSTEM_MAPS_POINTS_REWARDS = {}
 
----------------------------------------------------------
+------------------------------------------------------------
 -- CONFIGURACIÓN MAPA 0 (Lorencia) - Quest 1 (One-Time)
----------------------------------------------------------
+-- Importane: Si hay mas de una mision por mapa el KEY 
+-- debe ir cambiado como se muestra en las quest de Lorencia
+------------------------------------------------------------
 local KEY_LR1 = QKey(748, 0, 1)
 
 QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_LR1 ] = {
@@ -185,10 +195,10 @@ QUEST_SYSTEM_MAPS_REWARD_COINS[ KEY_DUN ] = {
 local KEY_DVS = QKey(748, 2, 100)
 
 QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_DVS ] = {
-    { MonsterIndex = 562, Quantity = 1, MonsterName = 'Dark Mammoth' },
-    { MonsterIndex = 563, Quantity = 1, MonsterName = 'Dark Giant' },
-    { MonsterIndex = 564, Quantity = 1, MonsterName = 'Dark Coolutin' },
-    { MonsterIndex = 565, Quantity = 1, MonsterName = 'Dark Iron Knight' },
+    { MonsterIndex = 562, Quantity = 10, MonsterName = 'Dark Mammoth' },
+    { MonsterIndex = 563, Quantity = 10, MonsterName = 'Dark Giant' },
+    { MonsterIndex = 564, Quantity = 10, MonsterName = 'Dark Coolutin' },
+    { MonsterIndex = 565, Quantity = 10, MonsterName = 'Dark Iron Knight' },
 }
 
 QUEST_SYSTEM_MAPS_REWARD_COINS[ KEY_DVS ] = {
@@ -234,6 +244,46 @@ QUEST_SYSTEM_MAPS_REWARD_ITEMS[ KEY_KT ] = {
 }
 
 QUEST_SYSTEM_MAPS_REWARD_EXP[ KEY_KT ] = {
+    { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
+}
+
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 84 (ARKANIA) - Quest 800 Master
+---------------------------------------------------------
+local KEY_ARK = QKey(748, 84, 800)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ARK ] = {
+    { MonsterIndex = 820, Quantity = 1, MonsterName = 'Brave' },
+    { MonsterIndex = 821, Quantity = 1, MonsterName = 'Lava Demon' },
+    { MonsterIndex = 822, Quantity = 1, MonsterName = 'Lizard Men' },
+    { MonsterIndex = 823, Quantity = 1, MonsterName = 'Red Centaurus' },
+	{ MonsterIndex = 824, Quantity = 1, MonsterName = 'Mutant Golem' },
+}
+
+QUEST_SYSTEM_MAPS_REWARD_COINS[ KEY_ARK ] = {
+    { CoinName = 'WCoins', CoinAmount = 100, CoinIdentification = 1 },
+}
+
+QUEST_SYSTEM_MAPS_REWARD_EXP[ KEY_ARK ] = {
+    { ExpId = 4, Amount = 1, ExpName = "LVL UP" },
+}
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 40 (Silent) - Quest 400 Master
+---------------------------------------------------------
+local KEY_SIL = QKey(748, 40, 400)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_SIL ] = {
+    { MonsterIndex = 515, Quantity = 1, MonsterName = 'Grand Wizard' },
+    { MonsterIndex = 836, Quantity = 1, MonsterName = 'Blue Centaurus' },
+    { MonsterIndex = 835, Quantity = 1, MonsterName = 'Cerberus' },
+    { MonsterIndex = 801, Quantity = 1, MonsterName = 'Abbadon' },
+}
+
+QUEST_SYSTEM_MAPS_REWARD_COINS[ KEY_SIL ] = {
+    { CoinName = 'WCoins', CoinAmount = 100, CoinIdentification = 1 },
+}
+
+QUEST_SYSTEM_MAPS_REWARD_EXP[ KEY_SIL ] = {
     { ExpId = 3, Amount = 1, ExpName = "LVL UP" },
 }
 ----------------
@@ -999,60 +1049,74 @@ function QuestSystemByMaps.RenderFinishNotification()
         return
     end
 
-    -- 1. Alpha para el desvanecimiento del texto
+    -- 1. Alpha para el desvanecimiento de TODO
     local alpha = 1.0
     if elapsed < 0.5 then 
         alpha = elapsed / 0.5
     elseif elapsed > (duration - 1.0) then 
         alpha = (duration - elapsed) / 1.0 
     end
-    local aInt = math.floor(alpha * 255)
     
-    -- 2. Coordenadas base
+    -- Alpha normal para el texto y Alpha al 70% para las sombras
+    local aInt = math.floor(alpha * 255)
+    local shadowA = math.floor(alpha * 178) 
+    
+    -- 2. Coordenadas base de la pantalla
     local screenWidth = 640
     local fullX = ReturnWideScreenX()
     local startY = 150 
-    local renderWidth = 600
-    local startX = (screenWidth / 2) - (renderWidth / 2) + fullX
 
     ---------------------------------------------------------
-    -- DIBUJO DEL ICONO (Limpio y sin Brillos)
+    -- PREPARACIÓN DEL MOTOR GRÁFICO
     ---------------------------------------------------------
-    --local imgID = 40017
-    --local imgW, imgH = 50, 50
-    --local imgX = (screenWidth / 2) - (imgW / 2) + fullX
+    EnableAlphaTest()
+    EnableAlphaBlend()
+    SetBlend() 
     
-    -- Para evitar el "brillo" excesivo y quitar el fondo negro:
-    --EnableAlphaTest()   -- Corta el fondo negro de la imagen
-    --EnableAlphaBlend()  -- Permite transparencia suave
-    
-    -- Seteamos color blanco puro al 100% para que la imagen no brille de más
-    --glColor3f(1.0, 1.0, 1.0)
-    --
-    --RenderImage2(imgID, imgX, startY, imgW, imgH, 0, 0, 1, 1, 1, 1, 1)
+    ---------------------------------------------------------
+    -- TEXTOS CON BORDE (Posicionados donde iba la imagen)
+    ---------------------------------------------------------
+    local currentY = startY -- Arranca directo en la coordenada Y=150
+    local renderWidth = 300 
+    local renderX = (screenWidth / 2) - (renderWidth / 2) + fullX
 
-    ---------------------------------------------------------
-    -- DIBUJO DE LOS TEXTOS (Con Sombra Básica)
-    ---------------------------------------------------------
-    local function RenderGiantWithBorder(posY, text, color)
-        SetFontType(1)
-		
+    SetTextBg(0, 0, 0, 0)
+    SetFontType(1)
+    
+    local function DrawTextWithShadow(text, r, g, b)
+        -- DIBUJAMOS EL BORDE NEGRO
+        SetTextColor(0, 0, 0, shadowA)
         
-        -- Sombra negra sólida (4 puntos para que se lea bien)
-        --SetTextColor(0, 0, 0, aInt)
-        --RenderText3(startX + 1, posY + 1, text, renderWidth, 3)
-        --RenderText3(startX - 1, posY - 1, text, renderWidth, 3)
+        -- Cruz cardinal (1px arriba, abajo, izquierda, derecha)
+        RenderText3(renderX - 1, currentY, text, renderWidth, 3)
+        RenderText3(renderX + 1, currentY, text, renderWidth, 3)
+        RenderText3(renderX, currentY - 1, text, renderWidth, 3)
+        RenderText3(renderX, currentY + 1, text, renderWidth, 3)
+        
+        -- Diagonales para pintar el borde aún más grueso y cerrado
+        RenderText3(renderX - 1, currentY - 1, text, renderWidth, 3)
+        RenderText3(renderX + 1, currentY + 1, text, renderWidth, 3)
+        RenderText3(renderX - 1, currentY + 1, text, renderWidth, 3)
+        RenderText3(renderX + 1, currentY - 1, text, renderWidth, 3)
+        
+        -- TEXTO PRINCIPAL EN EL CENTRO EXACTO
+        SetTextColor(r, g, b, aInt)
+        RenderText3(renderX, currentY, text, renderWidth, 3)
 
-        -- Texto principal
-        SetTextColor(color[1], color[2], color[3], aInt)
-        RenderText3(startX, posY, text, renderWidth, 3)
+        -- Separación vertical entre líneas de texto
+        currentY = currentY + 10
     end
 
-    -- Posiciones corregidas para que no se pisen (Damos 15px de espacio)
-    RenderGiantWithBorder(startY + 45, QuestSystemByMaps.FinishAnim.QuestName, {169, 169, 169})
-    RenderGiantWithBorder(startY + 55, "COMPLETED!", {34, 139, 34})
+    -- Dibujamos las 3 líneas
+    DrawTextWithShadow("Quest System", 255, 215, 0)
+    
+    local questNameUpper = string.upper(QuestSystemByMaps.FinishAnim.QuestName or "")
+    DrawTextWithShadow(questNameUpper, 200, 200, 200)
+    
+    DrawTextWithShadow("Completed!", 50, 255, 50)
 
-    DisableAlphaBlend()
+    -- Limpiamos el estado del motor
+    DisableBlend(); GLSwitch(); DisableAlphaBlend()
 end
 
 function QuestSystemByMaps.UpdateKeyEvent()
