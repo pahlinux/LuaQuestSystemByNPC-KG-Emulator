@@ -1209,6 +1209,7 @@ function QuestSystemByMaps.MonsterDie(PlayerIndex, MonsterIndex)
 end
 
 -- GetReward: give rewards and mark finished
+-- GetReward: give rewards and mark finished
 function QuestSystemByMaps.GetReward(player)
     if not player then return end
     
@@ -1309,8 +1310,7 @@ function QuestSystemByMaps.GetReward(player)
     if (c1r+c2r+c3r+c4r) > 0 then RemoveCoins(player:getIndex(), c1r, c2r, c3r, c4r) end
 
     -- 5. ENTREGA DE RECOMPENSAS
-    --SendMessage("--------------------------------------------------", player:getIndex(), 1)
-    SendMessage(string.format(" [Quest System] ¡%s Finalizada!", questInfo.QuestName or "Misión"), player:getIndex(), 1)
+    SendMessage(string.format(" [Quest System] ¡%s Finished!", questInfo.QuestName or "Misión"), player:getIndex(), 1)
 
     -- [ Items Reward ]
     local rewardItems = findInTable(QUEST_SYSTEM_MAPS_REWARD_ITEMS)
@@ -1325,7 +1325,7 @@ function QuestSystemByMaps.GetReward(player)
                         CreateItemInventory2(player:getIndex(), it.ItemIndex, it.Level, it.Op1, it.Op2, it.Life, it.Exc, it.Ancient, it.JoH, it.SockCount, (it.ItemTime or 0) * 86400)
                     end
                 end
-                SendMessage(string.format(" > Recibiste: %s x%d", it.Name or "Item", count), player:getIndex(), 1)
+                SendMessage(string.format(" > Reward: %s x%d", it.Name or "Item", count), player:getIndex(), 1)
             end
         end
     end
@@ -1337,7 +1337,7 @@ function QuestSystemByMaps.GetReward(player)
         for _, cn in pairs(rewardCoins) do
             local idx = cn.CoinIdentification
             if idx >= 1 and idx <= 5 then AddC[idx] = AddC[idx] + cn.CoinAmount end
-            SendMessage(string.format(" > Recibiste: %d %s", cn.CoinAmount, cn.CoinName or "Monedas"), player:getIndex(), 1)
+            SendMessage(string.format(" > Reward: %d %s", cn.CoinAmount, cn.CoinName or "Monedas"), player:getIndex(), 1)
         end
         if AddC[4] > 0 then
             if type(player.setCoin4) == "function" then player:setCoin4(player:getCoin4() + AddC[4])
@@ -1352,52 +1352,62 @@ function QuestSystemByMaps.GetReward(player)
     end
 
     -- [ Buffs Reward ]
-	-- [ Exp y Niveles Reward ]
-	local expR = findInTable(QUEST_SYSTEM_MAPS_REWARD_EXP)
-	if expR then
-		local MAX_LEVEL = 400
-		local MAX_MASTER_LEVEL = 400
-		
-		for _, ex in pairs(expR) do
-			-- 1. Recompensa de Nivel Normal
-			if ex.ExpId == 3 then 
-				local currentLvl = player:getLevel()
-				if currentLvl < MAX_LEVEL then
-					local newLevel = math.min(MAX_LEVEL, currentLvl + ex.Amount)
-					player:setLevel(newLevel)
-					
-					-- Sincronizar Nivel con el Cliente (Esto suele activar el efecto de Level Up)
-					if type(LevelSend) == "function" then 
-						LevelSend(player:getIndex()) 
-					elseif type(GCLevelUpSend) == "function" then
-						GCLevelUpSend(player:getIndex())
-					end
-	
-					SendMessage(string.format(" > ¡Subiste de Nivel! Nuevo nivel: %d", newLevel), player:getIndex(), 1)
-				end
-				
-			-- 2. Recompensa de Master Level
-			elseif ex.ExpId == 4 then 
-				local currentML = player:getMasterLevel()
-				if currentML < MAX_MASTER_LEVEL then
-					local newML = math.min(MAX_MASTER_LEVEL, currentML + ex.Amount)
-					player:setMasterLevel(newML)
-					
-					-- Sincronizar Master Level
-					if type(MasterLevelSend) == "function" then 
-						MasterLevelSend(player:getIndex()) 
-					end
-	
-					SendMessage(string.format(" > ¡Subiste de Nivel Master! Nuevo nivel: %d", newML), player:getIndex(), 1)
-				end
-				
-			-- 3. Recompensa de Experiencia Normal
-			elseif ex.ExpId == 1 then 
-				player:setExp(player:getExp() + ex.Amount) 
-				SendMessage(string.format(" > Recibiste: %d de Experiencia", ex.Amount), player:getIndex(), 1)
-			end
-		end
-	end
+    local questRewardBuff = findInTable(QUEST_SYSTEM_MAPS_REWARD_BUFF)
+    if questRewardBuff then
+        for _, buff in pairs(questRewardBuff) do
+            if buff.EffectID then
+                AddEffect(player:getIndex(), 1, buff.EffectID, os.time() + (buff.EffectTime or 0), 0, 0, 0, 0)
+                SendMessage(" > Reward (Buff)!", player:getIndex(), 1)
+            end
+        end
+    end
+
+    -- [ Exp y Niveles Reward ]
+    local expR = findInTable(QUEST_SYSTEM_MAPS_REWARD_EXP)
+    if expR then
+        local MAX_LEVEL = 400
+        local MAX_MASTER_LEVEL = 400
+        
+        for _, ex in pairs(expR) do
+            -- 1. Recompensa de Nivel Normal
+            if ex.ExpId == 3 then 
+                local currentLvl = player:getLevel()
+                if currentLvl < MAX_LEVEL then
+                    local newLevel = math.min(MAX_LEVEL, currentLvl + ex.Amount)
+                    player:setLevel(newLevel)
+                    
+                    -- Sincronizar Nivel con el Cliente (Esto suele activar el efecto de Level Up)
+                    if type(LevelSend) == "function" then 
+                        LevelSend(player:getIndex()) 
+                    elseif type(GCLevelUpSend) == "function" then
+                        GCLevelUpSend(player:getIndex())
+                    end
+    
+                    SendMessage(string.format(" > ¡LVL-UP! New lvl: %d", newLevel), player:getIndex(), 1)
+                end
+                
+            -- 2. Recompensa de Master Level
+            elseif ex.ExpId == 4 then 
+                local currentML = player:getMasterLevel()
+                if currentML < MAX_MASTER_LEVEL then
+                    local newML = math.min(MAX_MASTER_LEVEL, currentML + ex.Amount)
+                    player:setMasterLevel(newML)
+                    
+                    -- Sincronizar Master Level
+                    if type(MasterLevelSend) == "function" then 
+                        MasterLevelSend(player:getIndex()) 
+                    end
+    
+                    SendMessage(string.format(" > ¡LVL-UP Master! New lvl: %d", newML), player:getIndex(), 1)
+                end
+                
+            -- 3. Recompensa de Experiencia Normal
+            elseif ex.ExpId == 1 then 
+                player:setExp(player:getExp() + ex.Amount) 
+                SendMessage(string.format(" > Reward: %d de Exp.", ex.Amount), player:getIndex(), 1)
+            end
+        end
+    end
 
     -- [ Puntos Stats Reward ]
     local ptsR = findInTable(QUEST_SYSTEM_MAPS_POINTS_REWARDS)
@@ -1413,47 +1423,44 @@ function QuestSystemByMaps.GetReward(player)
         if type(GCLevelUpMsgSend) == "function" then GCLevelUpMsgSend(player:getIndex()) end
     end
 
-    --SendMessage("--------------------------------------------------", player:getIndex(), 1)
-
     -- 6. ACTUALIZACIÓN FINAL DE BASE DE DATOS Y ESTADOS
-	local q_update = string.format(
-		"UPDATE dbo.QUEST_SYSTEM_ACTIVE SET Status = 2, Finished = 1, CanCollect = 0, CompletedDate = GETDATE(), MapNumber = %d WHERE AccountID='%s' AND NPC=%d AND QuestIdentification=%d", 
-		currentMap, acc, npc_id, qid
-	)
-	QuestSystemByMaps.SafeCreateAsync('FinalizeQuest_'..acc, q_update, -1, 0)
-	
-	-- [MOLDE RAM] Aseguramos que las estructuras existan
-	QuestSystemByMaps.CompletedToday[acc] = QuestSystemByMaps.CompletedToday[acc] or {}
-	QuestSystemByMaps.CompletedToday[acc][npc_id] = QuestSystemByMaps.CompletedToday[acc][npc_id] or {}
-	QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] = QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] or {}
-	
-	QuestSystemByMaps.CompletedHistory[acc] = QuestSystemByMaps.CompletedHistory[acc] or {}
-	
-	-- 1. RAM: Registro de completado hoy (Para las Diarias)
-	QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap][tostring(qid)] = today
-	
-	-- 2. RAM: Registro de Historial Eterno (ESTA ES LA QUE FALTA PARA LAS ONE-TIME)
-	-- Al agregarla acá, OpenQuest la verá inmediatamente sin necesidad de reloguear.
-	QuestSystemByMaps.CompletedHistory[acc][tostring(qid)] = { isToday = true }
-	
-	-- 3. RAM: Limpieza de la misión de la lista de activos
-	if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] then
-		QuestSystemByMaps.PlayerActive[acc][npc_id][tostring(qid)] = nil
-	end
-	
-	-- CACHÉ: Sincronización final con el jugador
-	player:setCacheInt("QuestSystemByMapsStatus", 2)
-	player:setCacheInt("QuestSystemByMapsFinished", 1)
-	player:setCacheInt("QuestSystemByMapsCanCollect", 0)
-	player:setCacheInt("QuestSystemByMapsStarted", 0)
-	player:setCacheInt("QuestSystemByMapsIdentification", 0)
-	for i = 1, 9 do player:setCacheInt(string.format('QuestSystemByMapsKillsMonster%d', i), 0) end
-	
-	-- Sincronizar con el cliente
-	RefreshCharacter(player:getIndex())
-	QuestSystemByMaps.SendHUDUpdate(player, npc_id)
-	
-	LogAddC(2, string.format("QuestSystemByMaps.GetReward: %s [MAP:%d] cobró recompensa satisfactoriamente y RAM actualizada.", acc, currentMap))
+    local q_update = string.format(
+        "UPDATE dbo.QUEST_SYSTEM_ACTIVE SET Status = 2, Finished = 1, CanCollect = 0, CompletedDate = GETDATE(), MapNumber = %d WHERE AccountID='%s' AND NPC=%d AND QuestIdentification=%d", 
+        currentMap, acc, npc_id, qid
+    )
+    QuestSystemByMaps.SafeCreateAsync('FinalizeQuest_'..acc, q_update, -1, 0)
+    
+    -- [MOLDE RAM] Aseguramos que las estructuras existan
+    QuestSystemByMaps.CompletedToday[acc] = QuestSystemByMaps.CompletedToday[acc] or {}
+    QuestSystemByMaps.CompletedToday[acc][npc_id] = QuestSystemByMaps.CompletedToday[acc][npc_id] or {}
+    QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] = QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap] or {}
+    
+    QuestSystemByMaps.CompletedHistory[acc] = QuestSystemByMaps.CompletedHistory[acc] or {}
+    
+    -- 1. RAM: Registro de completado hoy (Para las Diarias)
+    QuestSystemByMaps.CompletedToday[acc][npc_id][currentMap][tostring(qid)] = today
+    
+    -- 2. RAM: Registro de Historial Eterno (ESTA ES LA QUE FALTA PARA LAS ONE-TIME)
+    QuestSystemByMaps.CompletedHistory[acc][tostring(qid)] = { isToday = true }
+    
+    -- 3. RAM: Limpieza de la misión de la lista de activos
+    if QuestSystemByMaps.PlayerActive[acc] and QuestSystemByMaps.PlayerActive[acc][npc_id] then
+        QuestSystemByMaps.PlayerActive[acc][npc_id][tostring(qid)] = nil
+    end
+    
+    -- CACHÉ: Sincronización final con el jugador
+    player:setCacheInt("QuestSystemByMapsStatus", 2)
+    player:setCacheInt("QuestSystemByMapsFinished", 1)
+    player:setCacheInt("QuestSystemByMapsCanCollect", 0)
+    player:setCacheInt("QuestSystemByMapsStarted", 0)
+    player:setCacheInt("QuestSystemByMapsIdentification", 0)
+    for i = 1, 9 do player:setCacheInt(string.format('QuestSystemByMapsKillsMonster%d', i), 0) end
+    
+    -- Sincronizar con el cliente
+    RefreshCharacter(player:getIndex())
+    QuestSystemByMaps.SendHUDUpdate(player, npc_id)
+    
+    LogAddC(2, string.format("QuestSystemByMaps.GetReward: %s [MAP:%d] cobró recompensa satisfactoriamente y RAM actualizada.", acc, currentMap))
 end
 
 -- NpcTalk: open UI when clicking NPC
