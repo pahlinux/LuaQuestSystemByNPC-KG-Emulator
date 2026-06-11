@@ -30,8 +30,7 @@ QUEST_DEBUG_MODE = false -- Cambiá a true cuando quieras ver los logs
 -- Lista de NPCs permitidos para abrir el Quest System
 -- Puedes añadir todos los que quieras: { [748] = true, [746] = true, [500] = true }
 QUEST_SYSTEM_MAPS_ALLOWED_NPCS = { 
-    [748] = true,
-	[741] = true,	
+    [748] = true, 
 }
 -- Por si acaso, definimos esta para evitar errores de nil
 QUEST_SYSTEM_MAPS_NPC_CLASS = 0
@@ -59,7 +58,17 @@ QUEST_SYSTEM_BY_MAP[1] = {
 QUEST_SYSTEM_BY_MAP[2] = {
     { QuestIdentification = 100, QuestName = 'Kill Monster Devias Ruins', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
 }
+-- MAPA 7: ATLANS
+QUEST_SYSTEM_BY_MAP[7] = {
+    { QuestIdentification = 71, QuestName = 'Kill Bahamut in the Water!', IsOneTime = 1, Level = 20, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 72, QuestName = 'Kill Vepar in the water!', IsOneTime = 1, Level = 40, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 73, QuestName = 'Kill Valkyrie in the water!', IsOneTime = 1, Level = 50, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 74, QuestName = 'Kill Great Bahamut in the water!', IsOneTime = 1, Level = 80, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 75, QuestName = 'Kill Silver Valkyrie in the water!', IsOneTime = 1, Level = 110, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 76, QuestName = 'Kill Lizard King in the water!', IsOneTime = 1, Level = 120, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
+	{ QuestIdentification = 77, QuestName = 'Kill Hydra in the water!', IsOneTime = 1, Level = 130, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0,  Vip = 0, Kills = 0, Validity = '01/06/2036' },
 
+}
 -- MAPA 37: KANTURU (Misiones que dará cualquier NPC de Quest en Kanturu)
 QUEST_SYSTEM_BY_MAP[37] = {
     { QuestIdentification = 300, QuestName = 'Kill Monster Kanturu', IsOneTime = 0, Level = 220, Reset = 0, MReset = 0, Zen = 0, Coin1 = 0, Coin2 = 0, Coin3 = 0, Coin4 = 0, Vip = 0, Kills = 0, Validity = '01/06/2036' },
@@ -220,7 +229,65 @@ QUEST_SYSTEM_MAPS_REWARD_BUFF[ KEY_DVS ] = {
 QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_DVS ] = {
     {PtsID = 1, Amount = 10, StatName = "Free Points"},
 }
+---------------------------------------------------------
+-- CONFIGURACIÓN MAPA 7 (Atlans) One-Time
+---------------------------------------------------------
+local KEY_ATL1 = QKey(748, 7, 71)
 
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL1 ] = {
+    { MonsterIndex = 45, Quantity = 100, MonsterName = 'Bahamut' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL1 ] = {
+    {PtsID = 1, Amount = 20, StatName = "Free Points"},
+}
+local KEY_ATL2 = QKey(748, 7, 72)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL2 ] = {
+    { MonsterIndex = 46, Quantity = 200, MonsterName = 'Vepar' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL2 ] = {
+    {PtsID = 1, Amount = 40, StatName = "Free Points"},
+}
+local KEY_ATL3 = QKey(748, 7, 73)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL3 ] = {
+    { MonsterIndex = 47, Quantity = 300, MonsterName = 'Valkyrie' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL3 ] = {
+    {PtsID = 1, Amount = 60, StatName = "Free Points"},
+}
+local KEY_ATL4 = QKey(748, 7, 74)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL4 ] = {
+    { MonsterIndex = 51, Quantity = 400, MonsterName = 'Great Bahamut' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL4 ] = {
+    {PtsID = 1, Amount = 80, StatName = "Free Points"},
+}
+local KEY_ATL5 = QKey(748, 7, 75)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL5 ] = {
+    { MonsterIndex = 52, Quantity = 500, MonsterName = 'Silver Valkyrie' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL5 ] = {
+    {PtsID = 1, Amount = 100, StatName = "Free Points"},
+}
+local KEY_ATL6 = QKey(748, 7, 76)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL6 ] = {
+    { MonsterIndex = 48, Quantity = 700, MonsterName = 'Lizard King' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL6 ] = {
+    {PtsID = 1, Amount = 120, StatName = "Free Points"},
+}
+local KEY_ATL7 = QKey(748, 7, 77)
+
+QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[ KEY_ATL7 ] = {
+    { MonsterIndex = 49, Quantity = 800, MonsterName = 'Hydra' },
+}
+QUEST_SYSTEM_MAPS_POINTS_REWARDS[ KEY_ATL7 ] = {
+    {PtsID = 1, Amount = 140, StatName = "Free Points"},
+}
 ---------------------------------------------------------
 -- CONFIGURACIÓN MAPA 37 (KANTURU) - Quest 300
 ---------------------------------------------------------
@@ -445,7 +512,7 @@ local m_Pos = { x = 0, y = 0 }
 local m_BtnQuest = { x = 610, y = 240, w = 25, h = 25}
 
 local WinW = 250
-local WinH = 270
+local WinH = 320
 
 function QuestSystemByMaps.GetCenterPos()
     local x = (640 / 2) - (WinW / 2) + ReturnWideScreenX()
@@ -521,11 +588,10 @@ function QuestSystemByMaps.RenderFrame()
     -- 1. Fondo Oscuro Principal
     glColor4f(0.0, 0.0, 0.0, 0.85) -- 85% opacidad para que se vea apenas el juego de fondo
     DrawBar(x, y, WinW, WinH)
-    
-    -- 2. Marco perimetral (Reemplaza las imágenes 40024-40029)
-    -- El color está en gris plomo (0.3, 0.3, 0.3). dorado (0.8, 0.7, 0.2)
-    glColor4f(0.823, 0.411, 0.117, 1.0) 
-    DrawBar(x - 1, y - 1, WinW + 2, 1)    -- Línea Superior
+    -- Marco Perimetral
+    -- El color está en gris plomo (0.3, 0.3, 0.3, 1.0). dorado (0.8, 0.7, 0.2, 1.0) naranja (0.823, 0.411, 0.117, 1.0)
+    glColor4f(0.3, 0.3, 0.3, 1.0)
+	DrawBar(x - 1, y - 1, WinW + 2, 1)    -- Línea Superior
     DrawBar(x - 1, y + WinH, WinW + 2, 1) -- Línea Inferior
     DrawBar(x - 1, y, 1, WinH)            -- Línea Izquierda
     DrawBar(x + WinW, y, 1, WinH)         -- Línea Derecha
@@ -628,6 +694,9 @@ function QuestSystemByMaps.RenderButtom(x, y, width, height, text)
     RenderText3(x, y + 5, text, width, 3)
 end
 
+-- ===================================================================== --
+-- RENDERIZADO PRINCIPAL DE TEXTOS
+-- ===================================================================== --
 function QuestSystemByMaps.RenderTexts()
     EnableAlphaTest(); SetFontType(1); SetTextBg(0, 0, 0, 0)
     local x, y = m_Pos.x, m_Pos.y
@@ -637,7 +706,6 @@ function QuestSystemByMaps.RenderTexts()
     SetTextColor(255, 0, 255, 255)
     RenderText3(x, y + 11, QUEST_SYSTEM_MAPS_MESSAGES[GetLanguage()][1], WinW, 3)
 
-    -- [NUEVO] Si está cargando, dibujamos el loading y salimos
     if QuestSystemByMaps.IsLoading then
         QuestSystemByMaps.RenderLoading()
         return
@@ -650,154 +718,207 @@ function QuestSystemByMaps.RenderTexts()
         return
     end
 
-    -- LÓGICA DE DIBUJO: DETALLE vs LISTA (Solo si no está cargando)
+    -- LÓGICA DE DIBUJO: DETALLE vs LISTA
     if QuestSystemByMaps.OpenedByPlayer == 1 and QuestSystemByMapsInfo and QuestSystemByMapsInfo.QuestIdentification then
         -- MUESTRA PROGRESO
-        SetTextColor(255, 200, 50, 255)
-        RenderText3(x, y + 40, QuestSystemByMapsInfo.QuestName or "Misión", WinW, 3)
         local requirementsOffset = QuestSystemByMaps.RenderTextRequirements(QuestSystemByMapsInfo)
         QuestSystemByMaps.RenderTextReward(QuestSystemByMapsInfo, requirementsOffset)
     else
-        -- MUESTRA LISTA
+        -- MUESTRA LISTA (Menú Inicial)
+        local titleY = y + 70 -- Bajamos el título para centrar mejor el contenido
         SetTextColor(255, 255, 100, 255)
-        RenderText3(x, y + 65, QUEST_SYSTEM_MAPS_MESSAGES[GetLanguage()][3], WinW, 3)
+        RenderText3(x, titleY, QUEST_SYSTEM_MAPS_MESSAGES[GetLanguage()][3], WinW, 3)
         
         local displayList = QuestSystemByMapsAvailableList or {}
         if #displayList == 0 then
             SetTextColor(150, 150, 150, 255)
-            RenderText3(x, y + 100, "No hay misiones disponibles aquí.", WinW, 3)
+            RenderText3(x, titleY + 40, "No hay misiones disponibles aquí.", WinW, 3)
         else
-            local listY = y + 90
+            local listY = titleY + 30 -- Las misiones arrancan debajo del título
+            local boxH = 20           -- Alto del recuadro
+            local boxSpacing = 24     -- Espacio total entre misión y misión
+            
             for idx, q in ipairs(displayList) do
-                local ly = listY + ((idx-1) * 14)
+                local ly = listY + ((idx-1) * boxSpacing)
                 
-                -- Buscamos la configuración local para saber si es OneTime
+                -- Dibujamos el recuadro individual para esta misión
+                QuestSystemByMaps.RenderInnerBox(x + 15, ly, WinW - 30, boxH)
+                
                 local qDef = QuestSystemByMaps.GetQuestIdentification(q.QuestIdentification)
                 local isOneTime = (qDef and qDef.IsOneTime == 1)
                 
-                -- LÓGICA DE COLORES Y PREFIJO
-                local questPrefix = ""
+                -- Detectamos el mouse para el efecto visual
+                local isHover = MousePosX() >= x + 15 and MousePosX() <= x + WinW - 15 and MousePosY() >= ly and MousePosY() <= ly + boxH
+                
+                local questPrefix = "[!] "
                 if isOneTime then
-                    questPrefix = "[!] " -- Signo de admiración para únicas
-                    if MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= ly and MousePosY() <= ly + 12 then
-                        SetTextColor(255, 180, 50, 255) -- Naranja brillante (Hover)
-                    else
-                        SetTextColor(255, 140, 0, 255)  -- Naranja oscuro (Normal)
-                    end
+                    if isHover then SetTextColor(255, 180, 50, 255) else SetTextColor(255, 140, 0, 255) end
                 else
-                    questPrefix = "[!] " 
-                    if MousePosX() >= x + 20 and MousePosX() <= x + WinW - 20 and MousePosY() >= ly and MousePosY() <= ly + 12 then
-                        SetTextColor(255, 255, 150, 255) -- Amarillo (Hover)
-                    else
-                        SetTextColor(0, 250, 154, 255)   -- Verde menta original (Normal)
-                    end
+                    if isHover then SetTextColor(255, 255, 150, 255) else SetTextColor(0, 250, 154, 255) end
                 end
                 
-                RenderText3(x + 20, ly, string.format("%s%s", questPrefix, q.QuestName), WinW - 40, 3)
+                -- Dibujamos el texto bien centrado dentro de su cajita
+                RenderText3(x + 20, ly + 6, string.format("%s%s", questPrefix, q.QuestName), WinW - 40, 3)
             end
         end
     end
     DisableAlphaBlend()
 end
 
+-- ===================================================================== --
+-- NUEVO DIBUJADOR DE RECUADROS INTERNOS (Fondo Oscuro + Borde Metálico)
+-- ===================================================================== --
+function QuestSystemByMaps.RenderInnerBox(x, y, w, h)
+    EnableAlphaTest()
+    EnableAlphaBlend()
+    SetBlend()
+    
+    -- Fondo interno (Oscuro)
+    glColor4f(0.05, 0.05, 0.05, 0.7) 
+    DrawBar(x, y, w, h)
+    
+    -- Borde interno (Gris Metálico sutil)
+    glColor4f(0.3, 0.3, 0.3, 0.8)
+    DrawBar(x - 1, y - 1, w + 2, 1)   -- Top
+    DrawBar(x - 1, y + h, w + 2, 1)   -- Bottom
+    DrawBar(x - 1, y, 1, h)           -- Left
+    DrawBar(x + w, y, 1, h)           -- Right
+    
+    EndDrawBar()
+    glColor4f(1.0, 1.0, 1.0, 1.0) -- Reset
+end
+
+-- ===================================================================== --
+-- RENDERIZADO DE REQUISITOS (Estilo Webzen Oficial)
+-- ===================================================================== --
 function QuestSystemByMaps.RenderTextRequirements(questInfo)
     local WinW = 250
+    local BoxMargin = 15
+    local BoxW = WinW - (BoxMargin * 2)
     local x, y = m_Pos.x, m_Pos.y
-    local titleY, m_Y = y + 65, y + 80
-    local addY = 0
+    
+    -- ¡AJUSTE ACÁ! Subimos el inicio de Y de 45 a 28 para que quede más cerca del título
+    local currentY = y + 28
     
     QuestSystemByMapsCanStart = true
-    if not questInfo or not questInfo.QuestIdentification then QuestSystemByMapsCanStart = false; return 0 end
+    if not questInfo or not questInfo.QuestIdentification then 
+        QuestSystemByMapsCanStart = false; return 0 
+    end
 
     local qDef = QuestSystemByMaps.GetQuestIdentification(questInfo.QuestIdentification)
-    if not qDef then QuestSystemByMapsCanStart = false; return 0 end
-
-    SetTextColor(255, 255, 255, 255); RenderText3(x, titleY, QUEST_SYSTEM_MAPS_MESSAGES[GetLanguage()][7], WinW, 3)
-    
-    local function RenderReqLine(text, isMet, blocksStart)
-        if isMet then SetTextColor(172, 255, 56, 255) 
-        else SetTextColor(255, 50, 50, 255); if blocksStart then QuestSystemByMapsCanStart = false end end
-        RenderText3(x, m_Y + addY, "[!] " .. text:gsub("^%- ", ""), WinW, 3)
-        addY = addY + 11
+    if not qDef then 
+        QuestSystemByMapsCanStart = false; return 0 
     end
-    
-    local lang = GetLanguage()
-    if (qDef.Level or 0) > 0 then RenderReqLine(string.format(QUEST_SYSTEM_MAPS_MESSAGES[lang][8], qDef.Level), (QuestSystemByMapsPlayerStats.Level or 0) >= qDef.Level, true) end
-    if (qDef.Reset or 0) > 0 then RenderReqLine(string.format(QUEST_SYSTEM_MAPS_MESSAGES[lang][9], qDef.Reset), (QuestSystemByMapsPlayerStats.Resets or 0) >= qDef.Reset, true) end
-    if (qDef.Zen or 0) > 0 then RenderReqLine(string.format(QUEST_SYSTEM_MAPS_MESSAGES[lang][11], qDef.Zen), (QuestSystemByMapsPlayerStats.Zen or 0) >= qDef.Zen, true) end
-    if (qDef.Coin4 or 0) > 0 then RenderReqLine(string.format(QUEST_SYSTEM_MAPS_MESSAGES[lang][15], qDef.Coin4), (QuestSystemByMapsPlayerStats.Coin4 or 0) >= qDef.Coin4, true) end
 
-	-- 4. REQUISITOS DE MONSTRUOS (Con Check ✔️)
+    -- -------------------------------------------------------------
+    -- 1. CABECERA: Título y Requisitos Generales
+    -- -------------------------------------------------------------
+    QuestSystemByMaps.RenderInnerBox(x + BoxMargin, currentY, BoxW, 40)
+    
+    -- Nombre de la Quest (Verde Brillante)
+    SetTextColor(100, 255, 100, 255)
+    RenderText3(x, currentY + 8, questInfo.QuestName or "Misión", WinW, 3)
+    
+    -- Armamos el texto de "Requirement: Level: X / Reset: Y"
+    local reqStr = ""
+    local lang = GetLanguage()
+    if (qDef.Level or 0) > 0 then reqStr = reqStr .. "Level: " .. qDef.Level .. " " end
+    if (qDef.Reset or 0) > 0 then reqStr = reqStr .. "/ Reset: " .. qDef.Reset .. " " end
+    if (qDef.Zen or 0) > 0 then reqStr = reqStr .. "/ Zen: " .. qDef.Zen .. " " end
+    if reqStr == "" then reqStr = "None" end
+    
+    -- Validamos si cumple los requisitos para ponerlo en verde o rojo
+    local isReqMet = true
+    if (qDef.Level or 0) > 0 and (QuestSystemByMapsPlayerStats.Level or 0) < qDef.Level then isReqMet = false end
+    if (qDef.Reset or 0) > 0 and (QuestSystemByMapsPlayerStats.Resets or 0) < qDef.Reset then isReqMet = false end
+    if (qDef.Zen or 0) > 0 and (QuestSystemByMapsPlayerStats.Zen or 0) < qDef.Zen then isReqMet = false end
+    
+    if isReqMet then SetTextColor(172, 255, 56, 255) else SetTextColor(255, 50, 50, 255); QuestSystemByMapsCanStart = false end
+    RenderText3(x, currentY + 22, "Requirement " .. reqStr, WinW, 3)
+
+    currentY = currentY + 50
+
+    -- -------------------------------------------------------------
+    -- 2. DETALLES DE MISIÓN (Mission Detail)
+    -- -------------------------------------------------------------
+    SetTextColor(255, 189, 25, 255) -- Dorado
+    RenderText3(x + BoxMargin, currentY, "◈ Mission Detail", WinW, 1) 
+    currentY = currentY + 15
+    
     local npc = QuestSystemByMapsCurrentNPC or 0
     local map = QuestSystemByMaps.CurrentMapID or 0
     local mKey = string.format("%d_%d_%d", npc, map, questInfo.QuestIdentification)
-    local monsterList = QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[mKey] or QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[questInfo.QuestIdentification]
     
+    local monsterList = QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[mKey] or QUEST_SYSTEM_MAPS_REQUIREMENTS_MONSTER[questInfo.QuestIdentification]
+    local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[mKey] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[questInfo.QuestIdentification]
+    
+    -- Dibujamos la caja grande para los detalles
+    local detLines = 0
+    if monsterList then detLines = detLines + math.min(5, #monsterList) end
+    if itemReqList then detLines = detLines + math.min(5, #itemReqList) end
+    local detBoxH = (detLines > 0) and (detLines * 15 + 10) or 25
+    
+    QuestSystemByMaps.RenderInnerBox(x + BoxMargin, currentY, BoxW, detBoxH)
+    local inBoxY = currentY + 7
+    
+    -- Función interna para dibujar cada fila
+    local function DrawDetailLine(prefix, name, cur, max)
+        local met = (cur >= max)
+        
+        -- Texto izquierdo
+        if met then SetTextColor(100, 100, 100, 255) else SetTextColor(127, 255, 212, 255) end
+        RenderText3(x + BoxMargin + 10, inBoxY, prefix .. ": " .. name, WinW, 1)
+        
+        -- Contador derecho
+        if met then 
+            SetTextColor(172, 255, 56, 255) 
+            RenderText3(x + WinW - BoxMargin - 35, inBoxY, cur .. "/" .. max, 30, 1)
+        else 
+            SetTextColor(225, 225, 225, 255) 
+            RenderText3(x + WinW - BoxMargin - 35, inBoxY, cur .. "/" .. max, 30, 1)
+        end
+        inBoxY = inBoxY + 15
+    end
+
     if monsterList then
         for idx, mon in ipairs(monsterList) do
             if idx > 5 then break end
             local reqQty = mon.Quantity or 0
             local curKills = (questInfo.KillsMonster and questInfo.KillsMonster[idx]) or 0
-            local met = (curKills >= reqQty)
-            
-            if met then 
-                -- COLOR: Verde Lima (172, 255, 56) + CHECK
-                SetTextColor(172, 255, 56, 255) 
-                RenderText3(x, m_Y + addY, string.format("[!] %s: %d ✔️", mon.MonsterName or "Monster", reqQty), WinW, 3)
-            else 
-                -- COLOR: Blanco (225, 225, 225) para progreso
-                SetTextColor(225, 225, 225, 255) 
-                RenderText3(x, m_Y + addY, string.format("[!] %s: %d/%d", mon.MonsterName or "Monster", curKills, reqQty), WinW, 3)
-            end
-            addY = addY + 11
+            DrawDetailLine("Defeat", mon.MonsterName or "Monster", curKills, reqQty)
         end
     end
-
-    -- 5. REQUISITOS DE ÍTEMS (Sincronizado con HUD)
-    local itemKey = string.format("%d_%d_%d", npc, map, questInfo.QuestIdentification)
-    local itemReqList = QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[itemKey] or QUEST_SYSTEM_MAPS_REQUIREMENTS_ITEMS[questInfo.QuestIdentification]
 
     if itemReqList then
         for idx, it in ipairs(itemReqList) do
             if idx > 5 then break end
             local reqQty = it.Quantity or 0
             local haveQty = (questInfo.ItemsCount and questInfo.ItemsCount[idx]) or (QuestSystemByMaps.HUD_Data.Items and QuestSystemByMaps.HUD_Data.Items[idx]) or 0
-            local met = (haveQty >= reqQty)
-            
-            -- LÓGICA DE NOMBRE
             local name = it.ItemName or it.Name or GetItemRealName(it.ItemIndex)
-
-            if met then 
-                -- COLOR: Aqua Marine (127, 255, 212) + CHECK
-                SetTextColor(127, 255, 212, 255) 
-                RenderText3(x, m_Y + addY, string.format("[!] %s: %d ✔️", name, reqQty), WinW, 3)
-            else 
-                -- COLOR: Blanco 
-                SetTextColor(255, 20, 147, 255) 
-                RenderText3(x, m_Y + addY, string.format("❎ %s: %d/%d", name, haveQty, reqQty), WinW, 3)
-            end
-            addY = addY + 11
+            DrawDetailLine("Gather", name, haveQty, reqQty)
         end
     end
     
-    return addY
+    currentY = currentY + detBoxH + 10
+    return (currentY - y) 
 end
 
+-- ===================================================================== --
+-- RENDERIZADO DE RECOMPENSAS (Award Estilo Cajas Individuales)
+-- ===================================================================== --
 function QuestSystemByMaps.RenderTextReward(questInfo, offsetY)
     if QuestSystemByMapsVisible ~= 1 then return end
     
     local WinW = 250
+    local BoxMargin = 15
+    local BoxW = WinW - (BoxMargin * 2)
     local x, y = m_Pos.x, m_Pos.y
-    local titleY = y + 80 + offsetY + 15 
-    local m_Y = titleY + 15
-    local addY = 0
+    local currentY = y + offsetY 
     
-    -- TÍTULO: PREMIOS (Ya estaba centrado)
+    -- TÍTULO: AWARD
     SetTextColor(255, 189, 25, 255)
-    RenderText3(x, titleY, QUEST_SYSTEM_MAPS_MESSAGES[GetLanguage()][20], WinW, 3)
-    
-    SetFontType(1)
-    SetTextColor(225, 225, 225, 255)
+    RenderText3(x + BoxMargin, currentY, "🎁 Standard Reward", WinW, 1)
+    currentY = currentY + 15
     
     local qid = (questInfo and questInfo.QuestIdentification) or QuestSystemByMaps.CurrentQuestID or 0
     local currentMap = QuestSystemByMaps.CurrentMapID or UserGetMap() or 0
@@ -834,102 +955,97 @@ function QuestSystemByMaps.RenderTextReward(questInfo, offsetY)
     }
     
     local any = false
+    SetFontType(1)
+    
     for _, res in ipairs(rewards) do
         if res.d and next(res.d) then
             any = true
             for _, v in pairs(res.d) do
                 local txt = ""
-                -- Cambio de prefijo "-" por "[!]" y lógica de centrado
+                
                 if res.t == "item" and (v.Class == -1 or v.Class == UserGetClass()) then
-                    txt = string.format("* %s", v.Name or (GetNameByIndex and GetNameByIndex(v.ItemIndex)) or "Item")
+                    txt = string.format("Item: %s x%d", v.Name or (GetNameByIndex and GetNameByIndex(v.ItemIndex)) or "Item", v.Count or 1)
                 elseif res.t == "coin" then
-                    txt = string.format("* %d %s", v.CoinAmount, v.CoinName or "Coins")
+                    txt = string.format("%s: %d", v.CoinName or "Coins", v.CoinAmount)
                 elseif res.t == "buff" then
-                    txt = string.format("* %s", v.BuffName or "Buff")
+                    txt = string.format("Buff: %s", v.BuffName or "Magic Effect")
                 elseif res.t == "exp" then
-                    local expNames = {"Exp", "Master Exp", "Level Up", "Master Level Up"}
-                    txt = string.format("* %d %s", v.Amount, v.ExpName or expNames[v.ExpId] or "Exp")
+                    local expNames = {"Exp", "Master Exp", "Level", "Master Level"}
+                    txt = string.format("%s: %d", v.ExpName or expNames[v.ExpId] or "Exp", v.Amount)
                 elseif res.t == "pts" and (v.Amount or 0) > 0 then
-                    local statNames = {"Puntos Libres", "Fuerza", "Agilidad", "Vitalidad", "Energia", "Comando"}
-                    txt = string.format("* %d %s", v.Amount, v.StatName or statNames[v.PtsID] or "Puntos")
+                    local statNames = {"Puntos", "Strength", "Agility", "Vitality", "Energy", "Command"}
+                    txt = string.format("Stats: +%d %s", v.Amount, v.StatName or statNames[v.PtsID] or "Puntos")
                 end
                 
                 if txt ~= "" then
-                    -- Centrado: x directo, WinW completo y modo 3
-                    RenderText3(x, m_Y + addY, txt, WinW, 3)
-                    addY = addY + 10
+                    -- Dibujamos una cajita fina por cada premio (como en la imagen)
+                    QuestSystemByMaps.RenderInnerBox(x + BoxMargin, currentY, BoxW, 16)
+                    SetTextColor(225, 225, 225, 255)
+                    RenderText3(x + BoxMargin + 8, currentY + 3, txt, WinW, 1)
+                    currentY = currentY + 18
                 end
             end
         end
     end
     
     if not any then
+        QuestSystemByMaps.RenderInnerBox(x + BoxMargin, currentY, BoxW, 16)
         SetTextColor(150, 150, 150, 255)
-        -- También centramos el mensaje de "No hay recompensas"
-        RenderText3(x, m_Y + addY, '[!] No hay recompensas visibles', WinW, 3)
+        RenderText3(x + BoxMargin + 8, currentY + 3, "No extra rewards.", WinW, 1)
     end
 end
 
+-- ===================================================================== --
+-- CONTROL DE CLICKS (UpdateMouse)
+-- ===================================================================== --
 function QuestSystemByMaps.UpdateMouse()
     if QuestSystemByMaps.IsLoading then return 1 end 
     
     local MouseX, MouseY = MousePosX(), MousePosY()
 
-    -- ===================================================================== --
-    -- PRIORIDAD 1: VENTANA EMERGENTE DE ABANDONAR QUEST
-    -- ===================================================================== --
+    -- 1: VENTANA EMERGENTE DE ABANDONAR QUEST
     if QuestSystemByMaps.ShowAbandonConfirm then
-        local WinW, WinH = 180, 80
-        local x = (640 / 2) - (WinW / 2) + ReturnWideScreenX()
-        local y = (480 / 2) - (WinH / 2)
+        local confirmW, confirmH = 180, 80
+        local x = (640 / 2) - (confirmW / 2) + ReturnWideScreenX()
+        local y = (480 / 2) - (confirmH / 2)
         local btnYesY = y + 55
         
-        -- Bloqueamos el click al piso para que el PJ no camine
         if type(DisableClickClient) == "function" then DisableClickClient() end
         if type(MouseLButtonPush) == "function" then MouseLButtonPush(0) end
 
-        -- Bloqueo de ráfaga de clicks
         if QuestSystemByMaps.ClickLock then
             if CheckPressedKey(Keys.LButton) == 0 then QuestSystemByMaps.ClickLock = false end
             return 1 
         end
 
         if CheckPressedKey(Keys.LButton) == 1 then
-            -- Click en YES
             if MouseX >= x + 20 and MouseX <= x + 80 and MouseY >= btnYesY and MouseY <= btnYesY + 15 then
                 QuestSystemByMaps.ShowAbandonConfirm = false
                 
-                -- MANDAMOS EL PAQUETE DE ABANDONO AL SERVIDOR
                 local packetStr = string.format("QuestAbandon_%s", UserGetName())
-                
                 CreatePacket(packetStr, QUEST_SYSTEM_MAPS_PACKET)
                 SetBytePacket(packetStr, 3) 
                 SetDwordPacket(packetStr, QuestSystemByMaps.HUD_ID or 0) 
                 SendPacket(packetStr)
                 ClearPacket(packetStr)
                 
-                -- Limpiamos el HUD localmente de inmediato
                 QuestSystemByMaps.HUD_ID = 0
                 QuestSystemByMaps.HUD_Data = {}
-                QuestSystemByMapsHUDVisible = 0 -- Apagamos el flag del HUD para que no parpadee
+                QuestSystemByMapsHUDVisible = 0 
                 QuestSystemByMaps.ClickLock = true
                 return 1
             end
             
-            -- Click en NO
             if MouseX >= x + 100 and MouseX <= x + 160 and MouseY >= btnYesY and MouseY <= btnYesY + 15 then
                 QuestSystemByMaps.ShowAbandonConfirm = false
                 QuestSystemByMaps.ClickLock = true
                 return 1
             end
         end
-        return 1 -- Interceptamos todos los clics mientras esté abierta
+        return 1 
     end
 
-    -- ===================================================================== --
-    -- PRIORIDAD 2: CLICK EN LA 'X' DEL HUD FLOTANTE
-    -- ===================================================================== --
-    -- [CORREGIDO] Blindaje anti-nil con (QuestSystemByMaps.HUD_ID or 0)
+    -- 2: CLICK EN LA 'X' DEL HUD FLOTANTE
     if (QuestSystemByMaps.HUD_ID or 0) > 0 and QuestSystemByMapsVisible ~= 1 and not QuestSystemByMaps.IsAnyWindowOpen() then
         local hudWidth = 160
         local startX = (720 - hudWidth - 42) + (ReturnWideScreenX() * 2)
@@ -955,9 +1071,7 @@ function QuestSystemByMaps.UpdateMouse()
         end
     end
 
-    -- ===================================================================== --
-    -- PRIORIDAD 3: VENTANA PRINCIPAL DE MISIONES
-    -- ===================================================================== --
+    -- 3: VENTANA PRINCIPAL DE MISIONES
     if QuestSystemByMapsVisible ~= 1 then return 0 end
     
     if QuestSystemByMaps.IsMouseOver() then
@@ -971,8 +1085,8 @@ function QuestSystemByMaps.UpdateMouse()
 
         local x, y = QuestSystemByMaps.GetCenterPos()
 
-        -- 1. BOTÓN CERRAR (X)
-        if MouseX >= x + 215 and MouseX <= x + 250 and MouseY >= y and MouseY <= y + 30 then
+        -- BOTÓN CERRAR (X)
+        if MouseX >= x + WinW - 35 and MouseX <= x + WinW and MouseY >= y and MouseY <= y + 30 then
             if CheckPressedKey(Keys.LButton) == 1 then 
                 QuestSystemByMaps.CloseAll()
                 QuestSystemByMaps.ClickLock = true
@@ -980,20 +1094,23 @@ function QuestSystemByMaps.UpdateMouse()
             end
         end
 
-        -- 2. LISTA DE MISIONES
+        -- LISTA DE MISIONES
         if QuestSystemByMaps.OpenedByPlayer == 0 and (QuestSystemByMapsFinishedQuest or 0) ~= 1 then
-            local listY = y + 90
+            local listY = y + 100 -- Debe coincidir con titleY (70) + 30
+            local boxH = 20
+            local boxSpacing = 24
+            
             local displayList = QuestSystemByMapsAvailableList or {}
             for idx, q in ipairs(displayList) do
-                local ly = listY + ((idx - 1) * 14)
-                if MouseX >= x + 20 and MouseX <= x + 230 and MouseY >= ly and MouseY <= ly + 14 then
+                local ly = listY + ((idx - 1) * boxSpacing)
+                
+                if MouseX >= x + 15 and MouseX <= x + WinW - 15 and MouseY >= ly and MouseY <= ly + boxH then
                     if CheckPressedKey(Keys.LButton) == 1 then
                         QuestSystemByMaps.OpenedByPlayer = 1
                         QuestSystemByMaps.CurrentQuestID = tonumber(q.QuestIdentification)
                         QuestSystemByMapsInfo = {}
                         for k, v in pairs(q) do QuestSystemByMapsInfo[k] = v end
                         
-                        -- [CORREGIDO] Más blindaje anti-nil
                         if (QuestSystemByMaps.HUD_ID or 0) > 0 and QuestSystemByMaps.CurrentQuestID == QuestSystemByMaps.HUD_ID then
                             QuestSystemByMapsInfo.Started = 1
                             QuestSystemByMapsInfo.CanCollectLocal = tonumber(QuestSystemByMaps.HUD_Data.CanCollect or 0)
@@ -1007,9 +1124,10 @@ function QuestSystemByMaps.UpdateMouse()
                 end
             end
         else
-            -- 3. BOTÓN DE ACCIÓN
-            local actionY = y + 238
-            if MouseX >= x + 20 and MouseX <= x + 230 and MouseY >= actionY - 5 and MouseY <= actionY + 15 then
+            -- BOTÓN DE ACCIÓN (Start / Collect)
+            local actionY = y + WinH - 32
+            
+            if MouseX >= x + 20 and MouseX <= x + WinW - 20 and MouseY >= actionY - 5 and MouseY <= actionY + 15 then
                 if CheckPressedKey(Keys.LButton) == 1 then
                     local canCollect = tonumber(QuestSystemByMapsInfo and QuestSystemByMapsInfo.CanCollectLocal or 0)
                     
@@ -1707,14 +1825,16 @@ function QuestSystemByMaps.RenderAbandonConfirm()
     DisableAlphaBlend()
 end
 
+-- ===================================================================== --
+-- ESCUDO DE LA VENTANA (Ahora lee WinH dinámicamente)
+-- ===================================================================== --
 function QuestSystemByMaps.IsMouseOver()
     if QuestSystemByMapsVisible ~= 1 then return false end
     
     local x, y = QuestSystemByMaps.GetCenterPos()
     local MouseX, MouseY = MousePosX(), MousePosY()
-    local WinW, WinH = 250, 270 -- Tus medidas actuales
     
-    -- Retorna true si el mouse está dentro del cuadrado de la ventana
+    -- Le decimos que proteja el click hasta la nueva altura total (WinH)
     return MouseX >= x and MouseX <= x + WinW and MouseY >= y and MouseY <= y + WinH
 end
 
